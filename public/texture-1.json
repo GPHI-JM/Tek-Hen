@@ -1,0 +1,159 @@
+{
+  "frames": {
+    "0_Reaper_Man_Idle Blinking_003.png": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 427,
+        "h": 576
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 220,
+        "y": 175,
+        "w": 427,
+        "h": 576
+      },
+      "sourceSize": {
+        "w": 900,
+        "h": 900
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "0_Reaper_Man_Idle Blinking_004.png": {
+      "frame": {
+        "x": 0,
+        "y": 576,
+        "w": 427,
+        "h": 576
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 217,
+        "y": 175,
+        "w": 427,
+        "h": 576
+      },
+      "sourceSize": {
+        "w": 900,
+        "h": 900
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "0_Reaper_Man_Idle Blinking_002.png": {
+      "frame": {
+        "x": 0,
+        "y": 1152,
+        "w": 427,
+        "h": 575
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 219,
+        "y": 176,
+        "w": 427,
+        "h": 575
+      },
+      "sourceSize": {
+        "w": 900,
+        "h": 900
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "0_Reaper_Man_Idle Blinking_017.png": {
+      "frame": {
+        "x": 427,
+        "y": 0,
+        "w": 429,
+        "h": 574
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 213,
+        "y": 177,
+        "w": 429,
+        "h": 574
+      },
+      "sourceSize": {
+        "w": 900,
+        "h": 900
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "0_Reaper_Man_Idle Blinking_001.png": {
+      "frame": {
+        "x": 856,
+        "y": 0,
+        "w": 427,
+        "h": 574
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 218,
+        "y": 177,
+        "w": 427,
+        "h": 574
+      },
+      "sourceSize": {
+        "w": 900,
+        "h": 900
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "0_Reaper_Man_Idle Blinking_000.png": {
+      "frame": {
+        "x": 1283,
+        "y": 0,
+        "w": 427,
+        "h": 573
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 217,
+        "y": 178,
+        "w": 427,
+        "h": 573
+      },
+      "sourceSize": {
+        "w": 900,
+        "h": 900
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    }
+  },
+  "meta": {
+    "app": "http://free-tex-packer.com",
+    "version": "0.6.7",
+    "image": "texture-1.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 1710,
+      "h": 1727
+    },
+    "scale": 1
+  }
+}

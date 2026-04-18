@@ -1,0 +1,231 @@
+{
+  "frames": {
+    "0_Reaper_Man_Slashing_002.png": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 628,
+        "h": 581
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 235,
+        "y": 171,
+        "w": 628,
+        "h": 581
+      },
+      "sourceSize": {
+        "w": 900,
+        "h": 900
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "0_Reaper_Man_Slashing_011.png": {
+      "frame": {
+        "x": 628,
+        "y": 0,
+        "w": 616,
+        "h": 583
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 225,
+        "y": 169,
+        "w": 616,
+        "h": 583
+      },
+      "sourceSize": {
+        "w": 900,
+        "h": 900
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "0_Reaper_Man_Slashing_010.png": {
+      "frame": {
+        "x": 0,
+        "y": 581,
+        "w": 597,
+        "h": 580
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 252,
+        "y": 171,
+        "w": 597,
+        "h": 580
+      },
+      "sourceSize": {
+        "w": 900,
+        "h": 900
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "0_Reaper_Man_Slashing_003.png": {
+      "frame": {
+        "x": 1244,
+        "y": 0,
+        "w": 584,
+        "h": 575
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 279,
+        "y": 176,
+        "w": 584,
+        "h": 575
+      },
+      "sourceSize": {
+        "w": 900,
+        "h": 900
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "0_Reaper_Man_Slashing_009.png": {
+      "frame": {
+        "x": 1244,
+        "y": 575,
+        "w": 581,
+        "h": 575
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 274,
+        "y": 176,
+        "w": 581,
+        "h": 575
+      },
+      "sourceSize": {
+        "w": 900,
+        "h": 900
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "0_Reaper_Man_Slashing_007.png": {
+      "frame": {
+        "x": 597,
+        "y": 583,
+        "w": 580,
+        "h": 565
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 283,
+        "y": 186,
+        "w": 580,
+        "h": 565
+      },
+      "sourceSize": {
+        "w": 900,
+        "h": 900
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "0_Reaper_Man_Slashing_006.png": {
+      "frame": {
+        "x": 597,
+        "y": 1148,
+        "w": 579,
+        "h": 565
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 284,
+        "y": 186,
+        "w": 579,
+        "h": 565
+      },
+      "sourceSize": {
+        "w": 900,
+        "h": 900
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "0_Reaper_Man_Slashing_008.png": {
+      "frame": {
+        "x": 0,
+        "y": 1161,
+        "w": 578,
+        "h": 568
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 283,
+        "y": 183,
+        "w": 578,
+        "h": 568
+      },
+      "sourceSize": {
+        "w": 900,
+        "h": 900
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "0_Reaper_Man_Slashing_005.png": {
+      "frame": {
+        "x": 1176,
+        "y": 1150,
+        "w": 578,
+        "h": 565
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 285,
+        "y": 186,
+        "w": 578,
+        "h": 565
+      },
+      "sourceSize": {
+        "w": 900,
+        "h": 900
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    }
+  },
+  "meta": {
+    "app": "http://free-tex-packer.com",
+    "version": "0.6.7",
+    "image": "crit-wala-0.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 1828,
+      "h": 1729
+    },
+    "scale": 1
+  }
+}
