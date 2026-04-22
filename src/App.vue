@@ -12,6 +12,9 @@ import {
   warmFightAudioBuffer,
 } from './game/fightSounds.js'
 import { publicAssetPath } from '../shared/roosterVariants.js'
+import {
+  switchFacebookInstantGame,
+} from './platform/facebookInstant.js'
 
 const store = useGameStore()
 const showFight = ref(false)
@@ -150,18 +153,33 @@ const logoUrl = computed(() => publicAssetPath('logo.png'))
 const meronUrl = computed(() => publicAssetPath('meron.png'))
 const walaUrl = computed(() => publicAssetPath('wala.png'))
 const tekHenUrl = computed(() => publicAssetPath('more-games/tekhen.png'))
-const basketballUrl = computed(() => publicAssetPath('more-games/basketball.png'))
-const magicHammerUrl = computed(() => publicAssetPath('more-games/magic-hammer.png'))
-const bingoFiestaUrl = computed(() => publicAssetPath('more-games/bingo-fiesta.png'))
-const powerHammerLink = 'https://fb.gg/play/4166337263499439'
-const bingoFiestaLink = 'https://fb.gg/play/1463506198613599'
-const netFlexLink = 'https://fb.gg/play/1431508008453701'
+const moreGames = [
+  {
+    appId: '1431508008453701',
+    name: 'Net Flex',
+    fallbackUrl: 'https://fb.gg/play/1431508008453701',
+    imageUrl: publicAssetPath('more-games/basketball.png'),
+  },
+  {
+    appId: '4166337263499439',
+    name: 'Power Hammer',
+    fallbackUrl: 'https://fb.gg/play/4166337263499439',
+    imageUrl: publicAssetPath('more-games/magic-hammer.png'),
+  },
+  {
+    appId: '1463506198613599',
+    name: 'Bingo Fiesta',
+    fallbackUrl: 'https://fb.gg/play/1463506198613599',
+    imageUrl: publicAssetPath('more-games/bingo-fiesta.png'),
+    darkBlend: true,
+  },
+]
 
 function isCompactLobbyViewport() {
   if (typeof window === 'undefined') {
     return false
   }
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  return window.innerWidth <= 900 || window.innerHeight <= 720
 }
 
 function updateCabinetScale() {
@@ -195,15 +213,19 @@ function returnToLobby() {
   })
 }
 
-function openExternalGameLink(url, event) {
+async function openExternalGameLink(game, event) {
   event?.preventDefault?.()
   if (typeof window === 'undefined') {
     return
   }
-  const opened = window.open(url, '_blank', 'noopener,noreferrer')
-  if (!opened) {
-    window.location.assign(url)
+  const didSwitch = await switchFacebookInstantGame(game.appId, {
+    source: 'tek-hen',
+  }).catch(() => false)
+  if (didSwitch) {
+    return
   }
+
+  window.location.assign(game.fallbackUrl)
 }
 
 const cabinetShellStyle = computed(() => ({
@@ -351,173 +373,175 @@ function openPhoneVerifyModal(event) {
           :class="{ 'arena-section--fight': showFight }"
           :style="showFight ? undefined : { backgroundImage: `url(${arenaBgUrl})` }"
         >
-          <Transition name="fade" mode="out-in">
-            <div v-if="showFight" key="fight" class="fight-wrapper fight-wrapper--tv">
-              <div class="vintage-tv" aria-label="Fight view">
-                <div class="vintage-tv__bezel">
-                  <div class="vintage-tv__screen">
-                    <div
-                      class="screen-blood-overlay"
-                      :class="{ 'screen-blood-overlay--active': showScreenBlood }"
-                      aria-hidden="true"
-                    />
-                    <GameCanvas
-                      @fight-end="handleFightEnd"
-                      @attack="handleAttack"
-                    />
-                  </div>
+          <div
+            class="fight-wrapper fight-wrapper--tv"
+            :class="{ 'fight-wrapper--active': showFight }"
+            aria-label="Fight view"
+          >
+            <div class="vintage-tv">
+              <div class="vintage-tv__bezel">
+                <div class="vintage-tv__screen">
+                  <div
+                    class="screen-blood-overlay"
+                    :class="{ 'screen-blood-overlay--active': showScreenBlood }"
+                    aria-hidden="true"
+                  />
+                  <GameCanvas
+                    @fight-end="handleFightEnd"
+                    @attack="handleAttack"
+                  />
                 </div>
-                <div class="vintage-tv__controls">
-                  <div class="vintage-tv__speaker-grille" aria-hidden="true" />
-                  <div class="vintage-tv__controls-spacer" aria-hidden="true" />
-                  <div class="vintage-tv__knobs" aria-hidden="true">
-                    <span class="vintage-tv__knob" />
-                    <span class="vintage-tv__knob" />
-                    <span class="vintage-tv__knob vintage-tv__knob--small" />
-                  </div>
+              </div>
+              <div class="vintage-tv__controls">
+                <div class="vintage-tv__speaker-grille" aria-hidden="true" />
+                <div class="vintage-tv__controls-spacer" aria-hidden="true" />
+                <div class="vintage-tv__knobs" aria-hidden="true">
+                  <span class="vintage-tv__knob" />
+                  <span class="vintage-tv__knob" />
+                  <span class="vintage-tv__knob vintage-tv__knob--small" />
                 </div>
               </div>
             </div>
-            <div v-else key="lobby" class="lobby-wrapper">
-              <div class="lobby-content">
-                <div class="rooster-preview rooster-preview--meron">
-                  <div class="lobby-rooster-anim lobby-rooster-anim--meron">
-                    <div class="lobby-rooster-anim__heat" aria-hidden="true" />
-                    <div class="lobby-rooster-anim__atmosphere" aria-hidden="true">
-                      <span class="lobby-rooster-anim__smoke lobby-rooster-anim__smoke--a" />
-                      <span class="lobby-rooster-anim__smoke lobby-rooster-anim__smoke--b" />
-                      <span class="lobby-rooster-anim__smoke lobby-rooster-anim__smoke--c" />
-                      <span class="lobby-rooster-anim__wind lobby-rooster-anim__wind--a" />
-                      <span class="lobby-rooster-anim__wind lobby-rooster-anim__wind--b" />
-                    </div>
-                    <div class="rooster-img-shell rooster-img-shell--meron-ss">
-                      <img :src="meronUrl" alt="MERON rooster" class="rooster-placeholder" />
-                      <div class="lobby-rooster-anim__ss-sparks" aria-hidden="true">
-                        <svg
-                          class="lobby-rooster-anim__ss-sparks-svg"
-                          viewBox="0 0 100 100"
-                          preserveAspectRatio="xMidYMid meet"
-                        >
-                          <path
-                            pathLength="100"
-                            class="lobby-rooster-anim__ss-bolt"
-                            :class="{ 'lobby-rooster-anim__ss-bolt--visible': meronSsBolts.b0 }"
-                            d="M52 8 L46 22 L54 26 L44 44 L50 48 L40 68 L48 72 L42 88"
-                            fill="none"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          />
-                          <path
-                            pathLength="100"
-                            class="lobby-rooster-anim__ss-bolt lobby-rooster-anim__ss-bolt--thin"
-                            :class="{ 'lobby-rooster-anim__ss-bolt--visible': meronSsBolts.b1 }"
-                            d="M38 32 L32 48 L36 52 L28 66"
-                            fill="none"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          />
-                          <path
-                            pathLength="100"
-                            class="lobby-rooster-anim__ss-bolt lobby-rooster-anim__ss-bolt--thin"
-                            :class="{ 'lobby-rooster-anim__ss-bolt--visible': meronSsBolts.b2 }"
-                            d="M68 38 L74 52 L70 58 L76 74"
-                            fill="none"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          />
-                          <path
-                            pathLength="100"
-                            class="lobby-rooster-anim__ss-bolt"
-                            :class="{ 'lobby-rooster-anim__ss-bolt--visible': meronSsBolts.b3 }"
-                            d="M58 52 L52 62 L56 66 L50 82"
-                            fill="none"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          />
-                        </svg>
-                      </div>
-                    </div>
+          </div>
+          <div class="lobby-wrapper">
+            <div class="lobby-content">
+              <div class="rooster-preview rooster-preview--meron">
+                <div class="lobby-rooster-anim lobby-rooster-anim--meron">
+                  <div class="lobby-rooster-anim__heat" aria-hidden="true" />
+                  <div class="lobby-rooster-anim__atmosphere" aria-hidden="true">
+                    <span class="lobby-rooster-anim__smoke lobby-rooster-anim__smoke--a" />
+                    <span class="lobby-rooster-anim__smoke lobby-rooster-anim__smoke--b" />
+                    <span class="lobby-rooster-anim__smoke lobby-rooster-anim__smoke--c" />
+                    <span class="lobby-rooster-anim__wind lobby-rooster-anim__wind--a" />
+                    <span class="lobby-rooster-anim__wind lobby-rooster-anim__wind--b" />
                   </div>
-                  <div class="lobby-side-label lobby-side-label--meron">
-                    <div class="lobby-side-label__outer">
-                      <div class="lobby-side-label__inner">
-                        <span class="lobby-side-label__text">MERON</span>
-                      </div>
+                  <div class="rooster-img-shell rooster-img-shell--meron-ss">
+                    <img :src="meronUrl" alt="MERON rooster" class="rooster-placeholder" />
+                    <div class="lobby-rooster-anim__ss-sparks" aria-hidden="true">
+                      <svg
+                        class="lobby-rooster-anim__ss-sparks-svg"
+                        viewBox="0 0 100 100"
+                        preserveAspectRatio="xMidYMid meet"
+                      >
+                        <path
+                          pathLength="100"
+                          class="lobby-rooster-anim__ss-bolt"
+                          :class="{ 'lobby-rooster-anim__ss-bolt--visible': meronSsBolts.b0 }"
+                          d="M52 8 L46 22 L54 26 L44 44 L50 48 L40 68 L48 72 L42 88"
+                          fill="none"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                        <path
+                          pathLength="100"
+                          class="lobby-rooster-anim__ss-bolt lobby-rooster-anim__ss-bolt--thin"
+                          :class="{ 'lobby-rooster-anim__ss-bolt--visible': meronSsBolts.b1 }"
+                          d="M38 32 L32 48 L36 52 L28 66"
+                          fill="none"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                        <path
+                          pathLength="100"
+                          class="lobby-rooster-anim__ss-bolt lobby-rooster-anim__ss-bolt--thin"
+                          :class="{ 'lobby-rooster-anim__ss-bolt--visible': meronSsBolts.b2 }"
+                          d="M68 38 L74 52 L70 58 L76 74"
+                          fill="none"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                        <path
+                          pathLength="100"
+                          class="lobby-rooster-anim__ss-bolt"
+                          :class="{ 'lobby-rooster-anim__ss-bolt--visible': meronSsBolts.b3 }"
+                          d="M58 52 L52 62 L56 66 L50 82"
+                          fill="none"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
                     </div>
                   </div>
                 </div>
-                <div class="lobby-content__timer">
-                  <GameTimer />
-                </div>
-                <div class="rooster-preview rooster-preview--wala">
-                  <div class="lobby-rooster-anim lobby-rooster-anim--wala">
-                    <div class="lobby-rooster-anim__heat" aria-hidden="true" />
-                    <div class="lobby-rooster-anim__atmosphere" aria-hidden="true">
-                      <span class="lobby-rooster-anim__smoke lobby-rooster-anim__smoke--a" />
-                      <span class="lobby-rooster-anim__smoke lobby-rooster-anim__smoke--b" />
-                      <span class="lobby-rooster-anim__smoke lobby-rooster-anim__smoke--c" />
-                      <span class="lobby-rooster-anim__wind lobby-rooster-anim__wind--a" />
-                      <span class="lobby-rooster-anim__wind lobby-rooster-anim__wind--b" />
-                    </div>
-                    <div class="rooster-img-shell rooster-img-shell--wala-ss">
-                      <img :src="walaUrl" alt="WALA rooster" class="rooster-placeholder" />
-                      <div class="lobby-rooster-anim__ss-sparks" aria-hidden="true">
-                        <svg
-                          class="lobby-rooster-anim__ss-sparks-svg"
-                          viewBox="0 0 100 100"
-                          preserveAspectRatio="xMidYMid meet"
-                        >
-                          <path
-                            pathLength="100"
-                            class="lobby-rooster-anim__ss-bolt"
-                            :class="{ 'lobby-rooster-anim__ss-bolt--visible': walaSsBolts.b0 }"
-                            d="M52 8 L46 22 L54 26 L44 44 L50 48 L40 68 L48 72 L42 88"
-                            fill="none"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          />
-                          <path
-                            pathLength="100"
-                            class="lobby-rooster-anim__ss-bolt lobby-rooster-anim__ss-bolt--thin"
-                            :class="{ 'lobby-rooster-anim__ss-bolt--visible': walaSsBolts.b1 }"
-                            d="M38 32 L32 48 L36 52 L28 66"
-                            fill="none"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          />
-                          <path
-                            pathLength="100"
-                            class="lobby-rooster-anim__ss-bolt lobby-rooster-anim__ss-bolt--thin"
-                            :class="{ 'lobby-rooster-anim__ss-bolt--visible': walaSsBolts.b2 }"
-                            d="M68 38 L74 52 L70 58 L76 74"
-                            fill="none"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          />
-                          <path
-                            pathLength="100"
-                            class="lobby-rooster-anim__ss-bolt"
-                            :class="{ 'lobby-rooster-anim__ss-bolt--visible': walaSsBolts.b3 }"
-                            d="M58 52 L52 62 L56 66 L50 82"
-                            fill="none"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="lobby-side-label lobby-side-label--wala">
-                    <div class="lobby-side-label__outer">
-                      <div class="lobby-side-label__inner">
-                        <span class="lobby-side-label__text">WALA</span>
-                      </div>
+                <div class="lobby-side-label lobby-side-label--meron">
+                  <div class="lobby-side-label__outer">
+                    <div class="lobby-side-label__inner">
+                      <span class="lobby-side-label__text">MERON</span>
                     </div>
                   </div>
                 </div>
               </div>
+              <div class="lobby-content__timer">
+                <GameTimer />
+              </div>
+              <div class="rooster-preview rooster-preview--wala">
+                <div class="lobby-rooster-anim lobby-rooster-anim--wala">
+                  <div class="lobby-rooster-anim__heat" aria-hidden="true" />
+                  <div class="lobby-rooster-anim__atmosphere" aria-hidden="true">
+                    <span class="lobby-rooster-anim__smoke lobby-rooster-anim__smoke--a" />
+                    <span class="lobby-rooster-anim__smoke lobby-rooster-anim__smoke--b" />
+                    <span class="lobby-rooster-anim__smoke lobby-rooster-anim__smoke--c" />
+                    <span class="lobby-rooster-anim__wind lobby-rooster-anim__wind--a" />
+                    <span class="lobby-rooster-anim__wind lobby-rooster-anim__wind--b" />
+                  </div>
+                  <div class="rooster-img-shell rooster-img-shell--wala-ss">
+                    <img :src="walaUrl" alt="WALA rooster" class="rooster-placeholder" />
+                    <div class="lobby-rooster-anim__ss-sparks" aria-hidden="true">
+                      <svg
+                        class="lobby-rooster-anim__ss-sparks-svg"
+                        viewBox="0 0 100 100"
+                        preserveAspectRatio="xMidYMid meet"
+                      >
+                        <path
+                          pathLength="100"
+                          class="lobby-rooster-anim__ss-bolt"
+                          :class="{ 'lobby-rooster-anim__ss-bolt--visible': walaSsBolts.b0 }"
+                          d="M52 8 L46 22 L54 26 L44 44 L50 48 L40 68 L48 72 L42 88"
+                          fill="none"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                        <path
+                          pathLength="100"
+                          class="lobby-rooster-anim__ss-bolt lobby-rooster-anim__ss-bolt--thin"
+                          :class="{ 'lobby-rooster-anim__ss-bolt--visible': walaSsBolts.b1 }"
+                          d="M38 32 L32 48 L36 52 L28 66"
+                          fill="none"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                        <path
+                          pathLength="100"
+                          class="lobby-rooster-anim__ss-bolt lobby-rooster-anim__ss-bolt--thin"
+                          :class="{ 'lobby-rooster-anim__ss-bolt--visible': walaSsBolts.b2 }"
+                          d="M68 38 L74 52 L70 58 L76 74"
+                          fill="none"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                        <path
+                          pathLength="100"
+                          class="lobby-rooster-anim__ss-bolt"
+                          :class="{ 'lobby-rooster-anim__ss-bolt--visible': walaSsBolts.b3 }"
+                          d="M58 52 L52 62 L56 66 L50 82"
+                          fill="none"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                <div class="lobby-side-label lobby-side-label--wala">
+                  <div class="lobby-side-label__outer">
+                    <div class="lobby-side-label__inner">
+                      <span class="lobby-side-label__text">WALA</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-          </Transition>
+          </div>
         </div>
       </main>
 
@@ -547,15 +571,13 @@ function openPhoneVerifyModal(event) {
                 <a
                   class="more-games-slot more-games-slot--glow more-games-slot--link"
                   role="listitem"
-                  :href="netFlexLink"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Open Net Flex"
-                  @click="openExternalGameLink(netFlexLink, $event)"
+                  :href="moreGames[0].fallbackUrl"
+                  :aria-label="`Open ${moreGames[0].name}`"
+                  @click="openExternalGameLink(moreGames[0], $event)"
                 >
                   <img
-                    :src="basketballUrl"
-                    alt="Net Flex"
+                    :src="moreGames[0].imageUrl"
+                    :alt="moreGames[0].name"
                     class="more-games-icon"
                     width="56"
                     height="56"
@@ -568,15 +590,13 @@ function openPhoneVerifyModal(event) {
                 <a
                   class="more-games-slot more-games-slot--glow more-games-slot--link"
                   role="listitem"
-                  :href="powerHammerLink"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Open Power Hammer"
-                  @click="openExternalGameLink(powerHammerLink, $event)"
+                  :href="moreGames[1].fallbackUrl"
+                  :aria-label="`Open ${moreGames[1].name}`"
+                  @click="openExternalGameLink(moreGames[1], $event)"
                 >
                   <img
-                    :src="magicHammerUrl"
-                    alt="Power Hammer"
+                    :src="moreGames[1].imageUrl"
+                    :alt="moreGames[1].name"
                     class="more-games-icon"
                     width="56"
                     height="56"
@@ -587,16 +607,15 @@ function openPhoneVerifyModal(event) {
                 <a
                   class="more-games-slot more-games-slot--glow more-games-slot--link"
                   role="listitem"
-                  :href="bingoFiestaLink"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Open Bingo Fiesta"
-                  @click="openExternalGameLink(bingoFiestaLink, $event)"
+                  :href="moreGames[2].fallbackUrl"
+                  :aria-label="`Open ${moreGames[2].name}`"
+                  @click="openExternalGameLink(moreGames[2], $event)"
                 >
                   <img
-                    :src="bingoFiestaUrl"
-                    alt="Bingo Fiesta"
-                    class="more-games-icon more-games-icon--blend-dark"
+                    :src="moreGames[2].imageUrl"
+                    :alt="moreGames[2].name"
+                    class="more-games-icon"
+                    :class="{ 'more-games-icon--blend-dark': moreGames[2].darkBlend }"
                     width="56"
                     height="56"
                     loading="lazy"
@@ -1240,7 +1259,7 @@ body,
 
 .arena-section {
   width: 100%;
-  min-height: 380px;
+  min-height: clamp(260px, 42vw, 380px);
   max-width: 1200px;
   background-position: center;
   background-size: cover;
@@ -1267,7 +1286,7 @@ body,
 .lobby-wrapper {
   width: 100%;
   height: 100%;
-  min-height: 380px;
+  min-height: clamp(260px, 42vw, 380px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1276,7 +1295,18 @@ body,
 }
 
 .fight-wrapper--tv {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   padding: 12px 8px 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.fight-wrapper--active {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .vintage-tv {
@@ -1471,6 +1501,8 @@ body,
   padding: 24px;
   width: 100%;
   flex-wrap: wrap;
+  position: relative;
+  z-index: 2;
 }
 
 .lobby-content__timer {
@@ -2027,6 +2059,82 @@ body,
   align-items: start;
   justify-content: center;
   width: 100%;
+}
+
+@media (max-width: 900px) {
+  .app {
+    padding: 8px 12px 16px;
+  }
+
+  .lobby-content {
+    gap: 16px;
+    padding: 18px 12px;
+  }
+
+  .lobby-content__timer {
+    width: min(100%, 15rem);
+    min-width: 0;
+    order: -1;
+  }
+
+  .rooster-img-shell,
+  .rooster-placeholder {
+    width: min(42vw, 220px);
+    height: min(42vw, 220px);
+  }
+}
+
+@media (max-width: 640px) {
+  .cabinet-frame {
+    padding: 16px 14px 20px;
+  }
+
+  .header {
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .logo {
+    height: 86px;
+  }
+
+  .arena-section:not(.arena-section--fight) {
+    border-radius: 12px 12px 18px 18px;
+  }
+
+  .fight-wrapper--tv {
+    padding: 8px 0 14px;
+  }
+
+  .vintage-tv {
+    max-width: 100%;
+  }
+
+  .lobby-content {
+    gap: 12px;
+    padding: 14px 8px;
+  }
+
+  .rooster-preview {
+    width: calc(50% - 8px);
+    min-width: 0;
+  }
+
+  .rooster-img-shell,
+  .rooster-placeholder {
+    width: min(40vw, 180px);
+    height: min(40vw, 180px);
+  }
+
+  .lobby-side-label__outer {
+    width: min(42vw, 148px);
+  }
+
+  .lobby-side-label--meron .lobby-side-label__text,
+  .lobby-side-label--wala .lobby-side-label__text {
+    font-size: 18px;
+    letter-spacing: 0.2em;
+  }
 }
 
 .fade-enter-active,

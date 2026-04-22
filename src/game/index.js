@@ -15,11 +15,13 @@ function resolveGameProfile() {
     }
   }
 
-  const compact = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const viewportWidth = window.innerWidth || 800
+  const viewportHeight = window.innerHeight || 450
+  const compact = viewportWidth <= 900 || viewportHeight <= 720
 
   return {
-    width: compact ? 640 : 800,
-    height: compact ? 360 : 450,
+    width: 800,
+    height: 450,
     fpsTarget: compact ? 30 : 60,
     resolution: compact ? 1 : Math.min(window.devicePixelRatio || 1, 1.5),
     compact,

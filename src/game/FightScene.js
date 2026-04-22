@@ -14,8 +14,6 @@ const WALA = 'wala'
 const MAX_HP = 5000
 
 /** Horizontal offset from arena center to each rooster (closer = smaller — sprites are 200px wide). */
-const ROOSTER_HALF_GAP = 105
-
 /** Push name plates outward from rooster feet so MERON/WALA labels have more space between them. */
 const ARENA_LABEL_OUTWARD_SHIFT = 40
 
@@ -37,6 +35,36 @@ const ATTACK_LABELS = {
 export class FightScene extends Phaser.Scene {
   constructor() {
     super({ key: 'Fight' })
+  }
+
+  getArenaLayout() {
+    const { width, height } = this.cameras.main
+    const widthRatio = width / 800
+    const heightRatio = height / 450
+    const scaleRatio = Math.min(widthRatio, heightRatio)
+    const isMobileLikeViewport = width <= 720 || height <= 405
+    const roosterSize = Phaser.Math.Clamp(
+      Math.round((isMobileLikeViewport ? 180 : 200) * scaleRatio),
+      150,
+      200
+    )
+    const roosterHalfGap = Phaser.Math.Clamp(
+      Math.round((isMobileLikeViewport ? 98 : 105) * widthRatio),
+      72,
+      118
+    )
+    const roosterY = Phaser.Math.Clamp(
+      Math.round(height * (isMobileLikeViewport ? 0.63 : 0.67)),
+      230,
+      height - roosterSize / 2 - 34
+    )
+
+    return {
+      roosterHalfGap,
+      roosterSize,
+      roosterY,
+      labelY: roosterY + roosterSize / 2 + (isMobileLikeViewport ? 20 : 18),
+    }
   }
 
   create() {
@@ -180,6 +208,7 @@ export class FightScene extends Phaser.Scene {
   createRoosters() {
     const { width } = this.cameras.main
     const centerX = width / 2
+    const arenaLayout = this.getArenaLayout()
 
     const playerVariantId = this.registry.get('playerRoosterVariantId')
     const playerBetSide = this.registry.get('playerBetSide')
@@ -199,16 +228,18 @@ export class FightScene extends Phaser.Scene {
     const walaBreedVariant = placePlayerBirdOnWala ? resolvedPlayerBreed : opponentBreedVariant
 
     this.meronSprite = this.createCharacterSprite(
-      centerX - ROOSTER_HALF_GAP,
-      300,
+      centerX - arenaLayout.roosterHalfGap,
+      arenaLayout.roosterY,
       MERON,
-      meronBreedVariant
+      meronBreedVariant,
+      arenaLayout.roosterSize
     )
     this.walaSprite = this.createCharacterSprite(
-      centerX + ROOSTER_HALF_GAP,
-      300,
+      centerX + arenaLayout.roosterHalfGap,
+      arenaLayout.roosterY,
       WALA,
-      walaBreedVariant
+      walaBreedVariant,
+      arenaLayout.roosterSize
     )
   }
 
@@ -217,14 +248,14 @@ export class FightScene extends Phaser.Scene {
     const labelDepthText = 26
     const plateWidth = this.isCompactViewport ? 138 : 168
     const plateHeight = this.isCompactViewport ? 36 : 44
-    const offsetBelowCenter = this.isCompactViewport ? 100 : 118
+    const arenaLayout = this.getArenaLayout()
     const fontSize = this.isCompactViewport ? 18 : 22
     const strokeThickness = this.isCompactViewport ? 4 : 5
     const letterSpacing = this.isCompactViewport ? 4 : 6
 
     const meronX = this.meronSprite.x - ARENA_LABEL_OUTWARD_SHIFT
     const walaX = this.walaSprite.x + ARENA_LABEL_OUTWARD_SHIFT
-    const labelY = this.meronSprite.y + offsetBelowCenter
+    const labelY = arenaLayout.labelY
 
     this.add
       .rectangle(meronX, labelY, plateWidth, plateHeight, 0x1a0808, 0.96)
@@ -277,9 +308,9 @@ export class FightScene extends Phaser.Scene {
       .setShadow(0, 2, '#1e6fa8', 6, true, true)
   }
 
-  createCharacterSprite(x, y, side, variant) {
+  createCharacterSprite(x, y, side, variant, size = 200) {
     const sprite = this.add.sprite(x, y, variant.atlasKey, variant.firstFrame)
-    sprite.setDisplaySize(200, 200)
+    sprite.setDisplaySize(size, size)
     // Right-facing art: MERON no flip, WALA flip. Left-facing (bulik-idle): MERON flip, WALA no flip.
     const facesLeftTexture = variant.facesLeft === true
     sprite.setFlipX(facesLeftTexture ? side === MERON : side === WALA)

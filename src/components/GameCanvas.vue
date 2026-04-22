@@ -10,6 +10,7 @@ import {
 import {
   primeFacebookLoadingProgress,
   syncFacebookContextToRegistry,
+  startFacebookGame,
 } from '../platform/facebookInstant.js'
 
 const emit = defineEmits(['attack', 'fightEnd'])
@@ -40,6 +41,7 @@ onMounted(() => {
     window.__shabongEmit = handleEmit
     primeFacebookLoadingProgress(5)
     void warmFightAudioBuffer()
+    void startFacebookGame().catch(() => null)
 
     requestAnimationFrame(() => {
       gameInstance = createGame(handleEmit)

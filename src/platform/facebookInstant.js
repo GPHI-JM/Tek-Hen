@@ -23,6 +23,15 @@ function getFBInstant() {
   return window.FBInstant ?? null
 }
 
+function flushLoadingProgress() {
+  const FBInstant = getFBInstant()
+  if (!FBInstant) {
+    return
+  }
+
+  FBInstant.setLoadingProgress(clampPercent(facebookContext.loadingPercent))
+}
+
 function waitForFBInstant(timeoutMs = 10000) {
   const existing = getFBInstant()
   if (existing) {
@@ -57,8 +66,9 @@ export function hasFacebookInstantGames() {
 
 export function primeFacebookLoadingProgress(percent = 1) {
   const FBInstant = getFBInstant()
+  facebookContext.loadingPercent = clampPercent(percent)
   if (!FBInstant) return
-  FBInstant.setLoadingProgress(clampPercent(percent))
+  FBInstant.setLoadingProgress(facebookContext.loadingPercent)
 }
 
 export async function initializeFacebookInstantGames() {
@@ -73,11 +83,12 @@ export async function initializeFacebookInstantGames() {
     }
 
     facebookContext.enabled = true
+    primeFacebookLoadingProgress(1)
     await FBInstant.initializeAsync()
     facebookContext.initialized = true
     facebookContext.playerId = FBInstant.player?.getID?.() ?? null
     facebookContext.contextId = FBInstant.context?.getID?.() ?? null
-    primeFacebookLoadingProgress(1)
+    flushLoadingProgress()
 
     return FBInstant
   })()
@@ -101,11 +112,30 @@ export async function startFacebookGame() {
     facebookContext.started = true
     facebookContext.playerName = FBInstant.player?.getName?.() ?? null
     facebookContext.photoUrl = FBInstant.player?.getPhoto?.() ?? null
+    flushLoadingProgress()
 
     return FBInstant
   })()
 
   return startPromise
+}
+
+export function switchFacebookInstantGame(appId, data = {}) {
+  if (!appId) {
+    return false
+  }
+
+  const FBInstant = getFBInstant()
+  if (!FBInstant?.switchGameAsync) {
+    return false
+  }
+
+  const result = FBInstant.switchGameAsync(appId, data)
+  if (result && typeof result.then === 'function') {
+    return result.then(() => true).catch(() => false)
+  }
+
+  return true
 }
 
 export function setFacebookLoadingProgress(percent) {
