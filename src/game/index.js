@@ -4,6 +4,28 @@ import { FightScene } from './FightScene.js'
 
 let gameInstance = null
 
+function resolveGameProfile() {
+  if (typeof window === 'undefined') {
+    return {
+      width: 800,
+      height: 450,
+      fpsTarget: 60,
+      resolution: 1,
+      compact: false,
+    }
+  }
+
+  const compact = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  return {
+    width: compact ? 640 : 800,
+    height: compact ? 360 : 450,
+    fpsTarget: compact ? 30 : 60,
+    resolution: compact ? 1 : Math.min(window.devicePixelRatio || 1, 1.5),
+    compact,
+  }
+}
+
 /**
  * Player breed + which side they bet (MERON/WALA). Opponent breed is random in FightScene.
  * Sync after createGame and when rooster or bet side changes.
@@ -27,10 +49,13 @@ export function createGame(emit) {
     gameInstance.destroy(true)
   }
 
+  const profile = resolveGameProfile()
+
   gameInstance = new Phaser.Game({
     type: Phaser.AUTO,
-    width: 800,
-    height: 450,
+    width: profile.width,
+    height: profile.height,
+    resolution: profile.resolution,
     parent: 'game-container',
     backgroundColor: '#d4b896',
     audio: {
@@ -39,16 +64,19 @@ export function createGame(emit) {
     emit,
     scene: [BootScene, FightScene],
     render: {
-      antialias: true,
+      antialias: !profile.compact,
+      roundPixels: profile.compact,
       powerPreference: 'high-performance',
     },
     fps: {
-      target: 60,
-      min: 30,
+      target: profile.fpsTarget,
+      min: profile.compact ? 24 : 30,
     },
     scale: {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
+      width: profile.width,
+      height: profile.height,
     },
   })
 

@@ -40,6 +40,7 @@ export class FightScene extends Phaser.Scene {
   }
 
   create() {
+    this.isCompactViewport = this.scale.width <= 720 || this.scale.height <= 405
     this.meronHp = MAX_HP
     this.walaHp = MAX_HP
     this.timeRemaining = FIGHT_SECONDS
@@ -116,12 +117,12 @@ export class FightScene extends Phaser.Scene {
     const footOffsetY = Math.max(attackerSprite.displayHeight, defenderSprite.displayHeight) * 0.5
     const footY = Math.min(attackerSprite.y, defenderSprite.y) + footOffsetY
 
-    const dustCount = isCritical ? 28 : 16
-    const gritCount = isCritical ? 12 : 7
-    const smokeCount = isCritical ? 14 : 8
+    const dustCount = this.isCompactViewport ? (isCritical ? 16 : 10) : isCritical ? 28 : 16
+    const gritCount = this.isCompactViewport ? (isCritical ? 8 : 5) : isCritical ? 12 : 7
+    const smokeCount = this.isCompactViewport ? (isCritical ? 8 : 5) : isCritical ? 14 : 8
 
     const dustEmitter = this.add.particles(0, 0, 'clash-dust', {
-      maxParticles: 64,
+      maxParticles: this.isCompactViewport ? 36 : 64,
       lifespan: { min: 420, max: 920 },
       speed: { min: 140, max: 320 },
       angle: { min: 195, max: 345 },
@@ -137,7 +138,7 @@ export class FightScene extends Phaser.Scene {
     dustEmitter.explode(dustCount, clashX, footY)
 
     const gritEmitter = this.add.particles(0, 0, 'clash-dust-grit', {
-      maxParticles: 32,
+      maxParticles: this.isCompactViewport ? 20 : 32,
       lifespan: { min: 280, max: 620 },
       speed: { min: 180, max: 420 },
       angle: { min: 195, max: 345 },
@@ -153,7 +154,7 @@ export class FightScene extends Phaser.Scene {
     gritEmitter.explode(gritCount, clashX, footY)
 
     const smokeEmitter = this.add.particles(0, 0, 'clash-smoke', {
-      maxParticles: 40,
+      maxParticles: this.isCompactViewport ? 24 : 40,
       lifespan: { min: 650, max: 1500 },
       speed: { min: 20, max: 95 },
       angle: { min: 245, max: 295 },
@@ -214,9 +215,12 @@ export class FightScene extends Phaser.Scene {
   createArenaLabels() {
     const labelDepthPlate = 24
     const labelDepthText = 26
-    const plateWidth = 168
-    const plateHeight = 44
-    const offsetBelowCenter = 118
+    const plateWidth = this.isCompactViewport ? 138 : 168
+    const plateHeight = this.isCompactViewport ? 36 : 44
+    const offsetBelowCenter = this.isCompactViewport ? 100 : 118
+    const fontSize = this.isCompactViewport ? 18 : 22
+    const strokeThickness = this.isCompactViewport ? 4 : 5
+    const letterSpacing = this.isCompactViewport ? 4 : 6
 
     const meronX = this.meronSprite.x - ARENA_LABEL_OUTWARD_SHIFT
     const walaX = this.walaSprite.x + ARENA_LABEL_OUTWARD_SHIFT
@@ -236,12 +240,12 @@ export class FightScene extends Phaser.Scene {
     this.add
       .text(meronX, labelY, 'MERON', {
         fontFamily: 'Orbitron, Impact, "Arial Black", sans-serif',
-        fontSize: '22px',
+        fontSize: `${fontSize}px`,
         fontStyle: 'bold',
         color: '#ffc9c4',
         stroke: '#2d0505',
-        strokeThickness: 5,
-        letterSpacing: 6,
+        strokeThickness,
+        letterSpacing,
       })
       .setOrigin(0.5)
       .setDepth(labelDepthText)
@@ -261,12 +265,12 @@ export class FightScene extends Phaser.Scene {
     this.add
       .text(walaX, labelY, 'WALA', {
         fontFamily: 'Orbitron, Impact, "Arial Black", sans-serif',
-        fontSize: '22px',
+        fontSize: `${fontSize}px`,
         fontStyle: 'bold',
         color: '#d4eefc',
         stroke: '#051018',
-        strokeThickness: 5,
-        letterSpacing: 6,
+        strokeThickness,
+        letterSpacing,
       })
       .setOrigin(0.5)
       .setDepth(labelDepthText)
@@ -289,61 +293,66 @@ export class FightScene extends Phaser.Scene {
 
   createHpBars() {
     const { width } = this.cameras.main
+    const barWidth = this.isCompactViewport ? 160 : 200
+    const leftX = this.isCompactViewport ? 92 : 120
+    const rightX = width - (this.isCompactViewport ? 252 : 320)
 
-    this.meronHpBar = this.createHpBar(120, 30, 0xc41e3a)
-    this.walaHpBar = this.createHpBar(width - 320, 30, 0xf5deb3)
+    this.hpLayout = { barWidth, leftX, rightX }
+
+    this.meronHpBar = this.createHpBar(leftX, 30, 0xc41e3a, barWidth)
+    this.walaHpBar = this.createHpBar(rightX, 30, 0xf5deb3, barWidth)
 
     const hpNameStyle = {
       fontFamily: 'Orbitron, Impact, "Arial Black", sans-serif',
-      fontSize: '15px',
+      fontSize: this.isCompactViewport ? '13px' : '15px',
       fontStyle: 'bold',
       color: '#ffffff',
       stroke: '#000000',
-      strokeThickness: 5,
-      letterSpacing: 2,
+      strokeThickness: this.isCompactViewport ? 4 : 5,
+      letterSpacing: this.isCompactViewport ? 1 : 2,
     }
 
     this.meronHpText = this.add
-      .text(120, 55, 'MERON', hpNameStyle)
+      .text(leftX, 55, 'MERON', hpNameStyle)
       .setDepth(22)
       .setShadow(0, 2, '#000000', 4, true, true)
 
     this.walaHpText = this.add
-      .text(width - 320, 55, 'WALA', hpNameStyle)
+      .text(rightX, 55, 'WALA', hpNameStyle)
       .setDepth(22)
       .setShadow(0, 2, '#000000', 4, true, true)
 
     const hpPercentStyle = {
       fontFamily: 'Orbitron, Impact, sans-serif',
-      fontSize: '13px',
+      fontSize: this.isCompactViewport ? '11px' : '13px',
       fontStyle: 'bold',
       color: '#ffffff',
       stroke: '#000000',
-      strokeThickness: 4,
+      strokeThickness: this.isCompactViewport ? 3 : 4,
     }
 
     this.meronHpPercent = this.add
-      .text(220, 40, '100%', hpPercentStyle)
+      .text(leftX + barWidth / 2, 40, '100%', hpPercentStyle)
       .setOrigin(0.5)
       .setDepth(23)
       .setShadow(0, 1, '#000000', 3, true, true)
 
     this.walaHpPercent = this.add
-      .text(width - 220, 40, '100%', hpPercentStyle)
+      .text(rightX + barWidth / 2, 40, '100%', hpPercentStyle)
       .setOrigin(0.5)
       .setDepth(23)
       .setShadow(0, 1, '#000000', 3, true, true)
   }
 
-  createHpBar(x, y, color) {
-    const bg = this.add.rectangle(x, y, 200, 20, 0x333333, 0.5).setOrigin(0).setDepth(20)
-    const bar = this.add.rectangle(x, y, 200, 20, color, 0.9).setOrigin(0).setDepth(21)
+  createHpBar(x, y, color, width = 200) {
+    const bg = this.add.rectangle(x, y, width, 20, 0x333333, 0.5).setOrigin(0).setDepth(20)
+    const bar = this.add.rectangle(x, y, width, 20, color, 0.9).setOrigin(0).setDepth(21)
     return { bg, bar }
   }
 
   updateHpBars() {
     const { width } = this.cameras.main
-    const barWidth = 200
+    const barWidth = this.hpLayout?.barWidth ?? 200
     const meronFill = barWidth * (this.meronHp / MAX_HP)
     const walaFill = barWidth * (this.walaHp / MAX_HP)
     this.meronHpBar.bar.width = meronFill
@@ -351,11 +360,12 @@ export class FightScene extends Phaser.Scene {
     const meronPct = Math.round((this.meronHp / MAX_HP) * 100)
     const walaPct = Math.round((this.walaHp / MAX_HP) * 100)
     this.meronHpPercent.setText(`${meronPct}%`)
-    const meronCenter = meronFill > 0 ? 120 + meronFill / 2 : 120 + barWidth / 2
+    const leftX = this.hpLayout?.leftX ?? 120
+    const rightX = this.hpLayout?.rightX ?? (width - 320)
+    const meronCenter = meronFill > 0 ? leftX + meronFill / 2 : leftX + barWidth / 2
     this.meronHpPercent.setPosition(meronCenter, 40)
     this.walaHpPercent.setText(`${walaPct}%`)
-    const walaBarX = width - 320
-    const walaCenter = walaFill > 0 ? walaBarX + walaFill / 2 : walaBarX + barWidth / 2
+    const walaCenter = walaFill > 0 ? rightX + walaFill / 2 : rightX + barWidth / 2
     this.walaHpPercent.setPosition(walaCenter, 40)
   }
 
@@ -363,7 +373,7 @@ export class FightScene extends Phaser.Scene {
     const { width } = this.cameras.main
     this.countdownText = this.add
       .text(width / 2, 60, String(FIGHT_SECONDS), {
-        fontSize: 48,
+        fontSize: this.isCompactViewport ? 40 : 48,
         color: '#8b0000',
         fontStyle: 'bold',
       })
@@ -486,7 +496,7 @@ export class FightScene extends Phaser.Scene {
     const spikeCount = isCritical ? 22 : isDock ? 12 : 16
     const outerRadius = isCritical ? 78 : isDock ? 46 : 58
     const innerRadius = outerRadius * (isCritical ? 0.58 : 0.52)
-    const fontSize = isCritical ? 24 : isDock ? 17 : 20
+    const fontSize = this.isCompactViewport ? (isCritical ? 20 : isDock ? 14 : 16) : isCritical ? 24 : isDock ? 17 : 20
     // Slight random tilt for energy; deterministic per call so it doesn't jitter
     const tiltDeg = isDock ? 0 : isCritical ? -6 : Phaser.Math.Between(-10, 10)
 
@@ -768,9 +778,9 @@ export class FightScene extends Phaser.Scene {
     this.ensureClashParticleTextures()
 
     // --- 1. Chunky arcing drops ---
-    const chunkDropCount = isCritical ? 28 : 14
+    const chunkDropCount = this.isCompactViewport ? (isCritical ? 16 : 8) : isCritical ? 28 : 14
     const chunkDropEmitter = this.add.particles(0, 0, 'blood-drop', {
-      maxParticles: 60,
+      maxParticles: this.isCompactViewport ? 36 : 60,
       lifespan: { min: 500, max: 1000 },
       speed: { min: 140, max: isCritical ? 380 : 260 },
       // Full upper hemisphere + sides so drops arc realistically
@@ -787,9 +797,9 @@ export class FightScene extends Phaser.Scene {
     chunkDropEmitter.explode(chunkDropCount, hitX, hitY)
 
     // --- 2. Fine blood mist — full 360° so it feels like an explosive burst ---
-    const mistCount = isCritical ? 22 : 10
+    const mistCount = this.isCompactViewport ? (isCritical ? 12 : 6) : isCritical ? 22 : 10
     const mistEmitter = this.add.particles(0, 0, 'blood-drop', {
-      maxParticles: 40,
+      maxParticles: this.isCompactViewport ? 24 : 40,
       lifespan: { min: 200, max: 480 },
       speed: { min: 40, max: isCritical ? 160 : 100 },
       angle: { min: 0, max: 360 },
@@ -805,9 +815,9 @@ export class FightScene extends Phaser.Scene {
     mistEmitter.explode(mistCount, hitX, hitY)
 
     // --- 3. Fast elongated streaks shooting outward ---
-    const streakCount = isCritical ? 14 : 7
+    const streakCount = this.isCompactViewport ? (isCritical ? 8 : 4) : isCritical ? 14 : 7
     const streakEmitter = this.add.particles(0, 0, 'blood-streak', {
-      maxParticles: 28,
+      maxParticles: this.isCompactViewport ? 16 : 28,
       lifespan: { min: 300, max: 650 },
       speed: { min: 200, max: isCritical ? 480 : 320 },
       angle: { min: 185, max: 355 },
@@ -843,7 +853,7 @@ export class FightScene extends Phaser.Scene {
     // Temporary graphics used only for stamping blobs into the render texture
     const blobGraphics = this.make.graphics({ x: 0, y: 0, add: false })
 
-    const blobCount = Phaser.Math.Between(6, 10)
+    const blobCount = this.isCompactViewport ? Phaser.Math.Between(3, 6) : Phaser.Math.Between(6, 10)
 
     for (let blobIndex = 0; blobIndex < blobCount; blobIndex++) {
       // Pick a random point biased toward the screen edges
@@ -900,7 +910,8 @@ export class FightScene extends Phaser.Scene {
   }
 
   spawnFeathers(x, y) {
-    for (let i = 0; i < 5; i++) {
+    const featherCount = this.isCompactViewport ? 3 : 5
+    for (let i = 0; i < featherCount; i++) {
       const feather = this.add.ellipse(x + Phaser.Math.Between(-30, 30), y, 8, 15, 0xd2b48c)
       this.tweens.add({
         targets: feather,
@@ -917,8 +928,8 @@ export class FightScene extends Phaser.Scene {
 
     const { width } = this.cameras.main
     const text = this.add
-      .text(width / 2, 120, 'CRITICAL STRIKE!', {
-        fontSize: 36,
+      .text(width / 2, this.isCompactViewport ? 110 : 120, 'CRITICAL STRIKE!', {
+        fontSize: this.isCompactViewport ? 28 : 36,
         color: '#8b0000',
         fontStyle: 'bold',
       })

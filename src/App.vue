@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, watch, onMounted, onUnmounted, computed } from 'vue'
+import { ref, reactive, watch, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { useGameStore, FREE_TOP_UP_AMOUNT, PAYOUT_MULTIPLIER } from './stores/gameStore'
 import GameCanvas from './components/GameCanvas.vue'
 import GameTimer from './components/GameTimer.vue'
@@ -7,14 +7,23 @@ import BettingTicket from './components/BettingTicket.vue'
 import RoosterSelect from './components/RoosterSelect.vue'
 import WinnerModal from './components/WinnerModal.vue'
 import PhoneVerifyModal from './components/PhoneVerifyModal.vue'
-import { installFightAudioResumeOnFirstGesture } from './game/fightSounds.js'
+import {
+  installFightAudioResumeOnFirstGesture,
+  warmFightAudioBuffer,
+} from './game/fightSounds.js'
+import { publicAssetPath } from '../shared/roosterVariants.js'
 
 const store = useGameStore()
 const showFight = ref(false)
 const showWinnerModal = ref(false)
 const showPhoneVerifyModal = ref(false)
 const showScreenBlood = ref(false)
+const cabinetFrame = ref(null)
+const cabinetShell = ref(null)
+const cabinetScale = ref(1)
 let screenBloodTimerId = null
+let cabinetResizeObserver = null
+let cabinetScaleRafId = 0
 
 function handleAttack(data) {
   if (!data?.isCritical) return
@@ -49,7 +58,7 @@ function scheduleMeronSsBoltFlash(boltIndex) {
   if (typeof window === 'undefined') {
     return
   }
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  if (isCompactLobbyViewport()) {
     return
   }
   const boltKeys = ['b0', 'b1', 'b2', 'b3']
@@ -72,7 +81,7 @@ function startMeronSsBoltLoop() {
   if (typeof window === 'undefined') {
     return
   }
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  if (isCompactLobbyViewport()) {
     return
   }
   for (let boltIndex = 0; boltIndex < 4; boltIndex += 1) {
@@ -101,7 +110,7 @@ function scheduleWalaSsBoltFlash(boltIndex) {
   if (typeof window === 'undefined') {
     return
   }
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  if (isCompactLobbyViewport()) {
     return
   }
   const boltKeys = ['b0', 'b1', 'b2', 'b3']
@@ -124,7 +133,7 @@ function startWalaSsBoltLoop() {
   if (typeof window === 'undefined') {
     return
   }
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  if (isCompactLobbyViewport()) {
     return
   }
   for (let boltIndex = 0; boltIndex < 4; boltIndex += 1) {
@@ -136,8 +145,86 @@ const freeTopUpTeaser = computed(
   () => `+ P ${FREE_TOP_UP_AMOUNT.toLocaleString()}`
 )
 
-onMounted(() => {
+const arenaBgUrl = computed(() => publicAssetPath('arena-bg.png'))
+const logoUrl = computed(() => publicAssetPath('logo.png'))
+const meronUrl = computed(() => publicAssetPath('meron.png'))
+const walaUrl = computed(() => publicAssetPath('wala.png'))
+const tekHenUrl = computed(() => publicAssetPath('more-games/tekhen.png'))
+const basketballUrl = computed(() => publicAssetPath('more-games/basketball.png'))
+const magicHammerUrl = computed(() => publicAssetPath('more-games/magic-hammer.png'))
+const bingoFiestaUrl = computed(() => publicAssetPath('more-games/bingo-fiesta.png'))
+const powerHammerLink = 'https://fb.gg/play/4166337263499439'
+const bingoFiestaLink = 'https://fb.gg/play/1463506198613599'
+const netFlexLink = 'https://fb.gg/play/1431508008453701'
+
+function isCompactLobbyViewport() {
+  if (typeof window === 'undefined') {
+    return false
+  }
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+function updateCabinetScale() {
+  if (typeof window === 'undefined' || !cabinetFrame.value) {
+    return
+  }
+
+  window.cancelAnimationFrame(cabinetScaleRafId)
+  cabinetScaleRafId = window.requestAnimationFrame(() => {
+    const frame = cabinetFrame.value
+    const baseWidth = 1120
+    const baseHeight = frame.offsetHeight || 1
+    const viewportWidth = Math.max(window.innerWidth - 16, 320)
+    const viewportHeight = Math.max(window.innerHeight - 16, 240)
+    const nextScale = Math.min(1, viewportWidth / baseWidth, viewportHeight / baseHeight)
+
+    cabinetScale.value = Number.isFinite(nextScale) ? Math.max(nextScale, 0.25) : 1
+  })
+}
+
+function returnToLobby() {
+  showFight.value = false
+  if (typeof window === 'undefined') {
+    return
+  }
+  window.requestAnimationFrame(() => {
+    cabinetFrame.value?.scrollIntoView?.({
+      behavior: 'smooth',
+      block: 'start',
+    })
+  })
+}
+
+function openExternalGameLink(url, event) {
+  event?.preventDefault?.()
+  if (typeof window === 'undefined') {
+    return
+  }
+  const opened = window.open(url, '_blank', 'noopener,noreferrer')
+  if (!opened) {
+    window.location.assign(url)
+  }
+}
+
+const cabinetShellStyle = computed(() => ({
+  '--cabinet-scale': String(cabinetScale.value),
+}))
+
+onMounted(async () => {
   installFightAudioResumeOnFirstGesture()
+  void warmFightAudioBuffer().catch(() => null)
+
+  await nextTick()
+  updateCabinetScale()
+
+  if (typeof window !== 'undefined' && 'ResizeObserver' in window && cabinetFrame.value) {
+    cabinetResizeObserver = new ResizeObserver(() => {
+      updateCabinetScale()
+    })
+    cabinetResizeObserver.observe(cabinetFrame.value)
+    window.addEventListener('resize', updateCabinetScale, { passive: true })
+    window.addEventListener('orientationchange', updateCabinetScale, { passive: true })
+  }
 })
 
 watch(
@@ -145,7 +232,7 @@ watch(
   (isFightView) => {
     clearWalaSsBoltSchedulers()
     clearMeronSsBoltSchedulers()
-    if (!isFightView) {
+    if (!isFightView && !isCompactLobbyViewport()) {
       startWalaSsBoltLoop()
       startMeronSsBoltLoop()
     }
@@ -156,6 +243,13 @@ watch(
 onUnmounted(() => {
   clearWalaSsBoltSchedulers()
   clearMeronSsBoltSchedulers()
+  cabinetResizeObserver?.disconnect()
+  cabinetResizeObserver = null
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('resize', updateCabinetScale)
+    window.removeEventListener('orientationchange', updateCabinetScale)
+    window.cancelAnimationFrame(cabinetScaleRafId)
+  }
 })
 
 watch(
@@ -213,10 +307,11 @@ function openPhoneVerifyModal(event) {
 
 <template>
   <div class="app">
-    <div class="cabinet-frame">
+    <div ref="cabinetShell" class="cabinet-frame-shell" :style="cabinetShellStyle">
+      <div ref="cabinetFrame" class="cabinet-frame">
       <header class="header">
         <div class="header-left" />
-        <img src="/logo.png" alt="TEK-HEN" class="logo" />
+        <img :src="logoUrl" alt="TEK-HEN" class="logo" />
         <div class="wallet-section">
           <div class="wallet-btn-wrap">
             <span v-if="store.canUseFreeTopUp" class="wallet-btn-hot" aria-hidden="true">HOT</span>
@@ -251,7 +346,11 @@ function openPhoneVerifyModal(event) {
       </header>
 
       <main class="arena-layout">
-        <div class="arena-section" :class="{ 'arena-section--fight': showFight }">
+        <div
+          class="arena-section"
+          :class="{ 'arena-section--fight': showFight }"
+          :style="showFight ? undefined : { backgroundImage: `url(${arenaBgUrl})` }"
+        >
           <Transition name="fade" mode="out-in">
             <div v-if="showFight" key="fight" class="fight-wrapper fight-wrapper--tv">
               <div class="vintage-tv" aria-label="Fight view">
@@ -292,7 +391,7 @@ function openPhoneVerifyModal(event) {
                       <span class="lobby-rooster-anim__wind lobby-rooster-anim__wind--b" />
                     </div>
                     <div class="rooster-img-shell rooster-img-shell--meron-ss">
-                      <img src="/meron.png" alt="MERON rooster" class="rooster-placeholder" />
+                      <img :src="meronUrl" alt="MERON rooster" class="rooster-placeholder" />
                       <div class="lobby-rooster-anim__ss-sparks" aria-hidden="true">
                         <svg
                           class="lobby-rooster-anim__ss-sparks-svg"
@@ -361,7 +460,7 @@ function openPhoneVerifyModal(event) {
                       <span class="lobby-rooster-anim__wind lobby-rooster-anim__wind--b" />
                     </div>
                     <div class="rooster-img-shell rooster-img-shell--wala-ss">
-                      <img src="/wala.png" alt="WALA rooster" class="rooster-placeholder" />
+                      <img :src="walaUrl" alt="WALA rooster" class="rooster-placeholder" />
                       <div class="lobby-rooster-anim__ss-sparks" aria-hidden="true">
                         <svg
                           class="lobby-rooster-anim__ss-sparks-svg"
@@ -428,9 +527,15 @@ function openPhoneVerifyModal(event) {
             <div class="cabinet-panel__title">MORE GAMES</div>
             <div class="more-games-grid" role="list">
               <div class="more-games-row">
-                <div class="more-games-slot more-games-slot--glow" role="listitem">
+                <button v-if="false"
+                  type="button"
+                  class="more-games-slot more-games-slot--glow more-games-slot--button"
+                  role="listitem"
+                  aria-label="Return to Tek-Hen lobby"
+                  @click="returnToLobby"
+                >
                   <img
-                    src="/more-games/tekhen.png"
+                    :src="tekHenUrl"
                     alt="TEK-HEN — coming soon"
                     class="more-games-icon more-games-icon--blend-dark"
                     width="56"
@@ -438,42 +543,66 @@ function openPhoneVerifyModal(event) {
                     loading="lazy"
                     decoding="async"
                   />
-                </div>
-                <div class="more-games-slot more-games-slot--glow" role="listitem">
+                </button>
+                <a
+                  class="more-games-slot more-games-slot--glow more-games-slot--link"
+                  role="listitem"
+                  :href="netFlexLink"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Open Net Flex"
+                  @click="openExternalGameLink(netFlexLink, $event)"
+                >
                   <img
-                    src="/more-games/basketball.png"
-                    alt="Basketball game — coming soon"
+                    :src="basketballUrl"
+                    alt="Net Flex"
                     class="more-games-icon"
                     width="56"
                     height="56"
                     loading="lazy"
                     decoding="async"
                   />
-                </div>
+                </a>
               </div>
               <div class="more-games-row">
-                <div class="more-games-slot more-games-slot--glow" role="listitem">
+                <a
+                  class="more-games-slot more-games-slot--glow more-games-slot--link"
+                  role="listitem"
+                  :href="powerHammerLink"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Open Power Hammer"
+                  @click="openExternalGameLink(powerHammerLink, $event)"
+                >
                   <img
-                    src="/more-games/magic-hammer.png"
-                    alt="Magic hammer game — coming soon"
+                    :src="magicHammerUrl"
+                    alt="Power Hammer"
                     class="more-games-icon"
                     width="56"
                     height="56"
                     loading="lazy"
                     decoding="async"
                   />
-                </div>
-                <div class="more-games-slot more-games-slot--glow" role="listitem">
+                </a>
+                <a
+                  class="more-games-slot more-games-slot--glow more-games-slot--link"
+                  role="listitem"
+                  :href="bingoFiestaLink"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Open Bingo Fiesta"
+                  @click="openExternalGameLink(bingoFiestaLink, $event)"
+                >
                   <img
-                    src="/more-games/bingo-fiesta.png"
-                    alt="Bingo Fiesta — coming soon"
+                    :src="bingoFiestaUrl"
+                    alt="Bingo Fiesta"
                     class="more-games-icon more-games-icon--blend-dark"
                     width="56"
                     height="56"
                     loading="lazy"
                     decoding="async"
                   />
-                </div>
+                </a>
               </div>
             </div>
           </div>
@@ -500,6 +629,7 @@ function openPhoneVerifyModal(event) {
 
     <WinnerModal :show="showWinnerModal" @close="closeWinnerModal" />
     <PhoneVerifyModal :show="showPhoneVerifyModal" @close="showPhoneVerifyModal = false" />
+    </div>
   </div>
 </template>
 
@@ -540,17 +670,30 @@ body,
 <style scoped>
 .app {
   min-height: 100vh;
+  width: 100%;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 24px;
+  padding: 8px 24px 24px;
+  overflow-x: hidden;
+}
+
+.cabinet-frame-shell {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 8px;
 }
 
 .cabinet-frame {
   --cabinet-amber: #d4a017;
   --cabinet-amber-glow: rgba(255, 180, 40, 0.45);
-  max-width: 1120px;
-  width: 100%;
+  width: 1120px;
+  max-width: none;
+  transform: scale(var(--cabinet-scale, 1));
+  transform-origin: top center;
+  box-sizing: border-box;
   background: linear-gradient(
     165deg,
     #3d3834 0%,
@@ -901,6 +1044,25 @@ body,
   overflow: visible;
 }
 
+.more-games-slot--button {
+  display: none;
+  border: none;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.more-games-slot--link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.more-games-slot--link:focus-visible,
+.more-games-slot--button:focus-visible {
+  outline: 2px solid rgba(100, 200, 255, 0.9);
+  outline-offset: 3px;
+}
+
 .more-games-slot--glow {
   animation: more-games-slot-glow 2.5s ease-in-out infinite;
 }
@@ -1080,7 +1242,9 @@ body,
   width: 100%;
   min-height: 380px;
   max-width: 1200px;
-  background: url('/arena-bg.png') center / cover no-repeat;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
   border: 4px solid #8b6914;
   border-radius: 12px;
   overflow: hidden;
@@ -1319,153 +1483,6 @@ body,
   min-width: 11.5rem;
   max-width: 15rem;
   contain: layout;
-}
-
-@media (max-width: 900px) {
-  .app {
-    padding: 14px 10px;
-    align-items: flex-start;
-    max-width: 100vw;
-    overflow-x: hidden;
-    box-sizing: border-box;
-  }
-
-  .cabinet-frame {
-    padding: 14px 12px 18px;
-  }
-
-  .header {
-    flex-wrap: wrap;
-    margin-bottom: 12px;
-    padding: 8px 10px;
-    gap: 8px;
-  }
-
-  .logo {
-    height: min(88px, 18vw);
-  }
-
-  .arena-layout {
-    margin-bottom: 10px;
-    width: 100%;
-  }
-
-  .arena-section {
-    min-height: min(300px, 48vh);
-    max-width: 100%;
-  }
-
-  .lobby-wrapper {
-    min-height: min(300px, 50vh);
-    gap: 8px;
-    padding: 0 4px;
-    box-sizing: border-box;
-  }
-
-  .lobby-content {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto;
-    gap: 12px 10px;
-    padding: 12px 8px;
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
-    align-items: start;
-    justify-items: center;
-  }
-
-  .lobby-content__timer {
-    grid-column: 1 / -1;
-    width: 100%;
-    max-width: min(20rem, 94vw);
-    min-width: 0;
-    flex: unset;
-    justify-content: center;
-    justify-self: center;
-  }
-
-  .rooster-preview--meron {
-    grid-column: 1;
-    width: 100%;
-    max-width: 100%;
-    justify-self: center;
-  }
-
-  .rooster-preview--wala {
-    grid-column: 2;
-    width: 100%;
-    max-width: 100%;
-    justify-self: center;
-  }
-
-  .rooster-img-shell {
-    width: clamp(96px, 32vw, 200px);
-    height: clamp(96px, 32vw, 200px);
-  }
-
-  .rooster-placeholder {
-    width: clamp(96px, 32vw, 200px);
-    height: clamp(96px, 32vw, 200px);
-  }
-}
-
-@media (max-width: 480px) {
-  .lobby-content {
-    grid-template-columns: 1fr;
-    gap: 8px;
-    padding: 10px 6px;
-  }
-
-  .rooster-preview--meron,
-  .rooster-preview--wala {
-    grid-column: 1;
-  }
-
-  .arena-section {
-    min-height: min(260px, 42vh);
-  }
-
-  .lobby-wrapper {
-    min-height: min(260px, 44vh);
-  }
-}
-
-@media (max-width: 640px) {
-  .logo {
-    height: min(64px, 22vw);
-  }
-
-  .wallet-btn {
-    padding: 8px 12px 8px 10px;
-    gap: 8px;
-  }
-
-  .rooster-img-shell {
-    width: clamp(72px, 42vw, 160px);
-    height: clamp(72px, 42vw, 160px);
-  }
-
-  .rooster-placeholder {
-    width: clamp(72px, 42vw, 160px);
-    height: clamp(72px, 42vw, 160px);
-  }
-
-  .rooster-preview {
-    gap: 3px;
-  }
-
-  .lobby-side-label__outer {
-    width: min(140px, 88vw);
-    height: 38px;
-    padding: 2px;
-  }
-
-  .lobby-side-label--meron .lobby-side-label__text,
-  .lobby-side-label--wala .lobby-side-label__text {
-    font-size: 18px;
-    letter-spacing: 0.28em;
-  }
 }
 
 .rooster-preview {
@@ -2010,12 +2027,6 @@ body,
   align-items: start;
   justify-content: center;
   width: 100%;
-}
-
-@media (max-width: 960px) {
-  .footer {
-    grid-template-columns: 1fr;
-  }
 }
 
 .fade-enter-active,
