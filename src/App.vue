@@ -13,6 +13,7 @@ import {
 } from './game/fightSounds.js'
 import { publicAssetPath } from '../shared/roosterVariants.js'
 import {
+  hasFacebookInstantGames,
   switchFacebookInstantGame,
 } from './platform/facebookInstant.js'
 
@@ -153,6 +154,8 @@ const logoUrl = computed(() => publicAssetPath('logo.png'))
 const meronUrl = computed(() => publicAssetPath('meron.png'))
 const walaUrl = computed(() => publicAssetPath('wala.png'))
 const tekHenUrl = computed(() => publicAssetPath('more-games/tekhen.png'))
+const moreGamesDebug = ref('')
+let moreGamesDebugTimerId = null
 const moreGames = [
   {
     appId: '1431508008453701',
@@ -174,6 +177,17 @@ const moreGames = [
     darkBlend: true,
   },
 ]
+
+function setMoreGamesDebug(message) {
+  moreGamesDebug.value = message
+  if (moreGamesDebugTimerId !== null) {
+    clearTimeout(moreGamesDebugTimerId)
+  }
+  moreGamesDebugTimerId = window.setTimeout(() => {
+    moreGamesDebug.value = ''
+    moreGamesDebugTimerId = null
+  }, 5000)
+}
 
 function isCompactLobbyViewport() {
   if (typeof window === 'undefined') {
@@ -220,11 +234,33 @@ async function openExternalGameLink(game, event) {
   }
   const didSwitch = await switchFacebookInstantGame(game.appId, {
     source: 'tek-hen',
-  }).catch(() => false)
-  if (didSwitch) {
+  }).catch((error) => {
+    const message = error instanceof Error ? error.message : String(error ?? 'unknown error')
+    console.warn('[More Games] switchGameAsync rejected for', game.name, message)
+    setMoreGamesDebug(`${game.name}: switchGameAsync rejected (${message})`)
+    return false
+  })
+
+  if (didSwitch === true) {
+    console.info('[More Games] switchGameAsync resolved for', game.name, game.appId)
+    setMoreGamesDebug(`${game.name}: switchGameAsync resolved`)
     return
   }
 
+  if (didSwitch === null) {
+    console.info('[More Games] switchGameAsync skipped for same app', game.name, game.appId)
+    setMoreGamesDebug(`${game.name}: already on this app`)
+    return
+  }
+
+  if (hasFacebookInstantGames()) {
+    console.warn('[More Games] switchGameAsync unavailable or rejected inside FB Instant for', game.name, game.appId)
+    setMoreGamesDebug(`${game.name}: switchGameAsync unavailable or rejected`)
+    return
+  }
+
+  console.info('[More Games] external fallback redirect for', game.name, game.fallbackUrl)
+  setMoreGamesDebug(`${game.name}: opening fallback page`)
   window.location.assign(game.fallbackUrl)
 }
 
@@ -265,6 +301,10 @@ watch(
 onUnmounted(() => {
   clearWalaSsBoltSchedulers()
   clearMeronSsBoltSchedulers()
+  if (moreGamesDebugTimerId !== null) {
+    clearTimeout(moreGamesDebugTimerId)
+    moreGamesDebugTimerId = null
+  }
   cabinetResizeObserver?.disconnect()
   cabinetResizeObserver = null
   if (typeof window !== 'undefined') {
@@ -624,6 +664,9 @@ function openPhoneVerifyModal(event) {
                 </a>
               </div>
             </div>
+            <p v-if="moreGamesDebug" class="more-games-debug" aria-live="polite">
+              {{ moreGamesDebug }}
+            </p>
           </div>
           <div class="footer-panel odds-panel odds-panel--under-more-games cabinet-panel">
             <div class="cabinet-panel__title">ODDS</div>
@@ -669,7 +712,7 @@ body,
       rgba(15, 14, 13, 0.88) 45%,
       rgba(8, 7, 6, 0.92) 100%
     ),
-    url('https://images.stockcake.com/public/8/f/1/8f1e6b68-a241-48c6-a794-2521c815864d_large/farmhouse-rooster-wallpaper-stockcake.jpg');
+    url('/arena-bg.png');
   background-position: center center;
   background-size: cover;
   background-repeat: no-repeat;
@@ -1163,6 +1206,18 @@ body,
 .more-games-panel .cabinet-panel__title {
   margin-bottom: 8px;
   padding-bottom: 6px;
+}
+
+.more-games-debug {
+  margin: 8px 8px 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(120, 180, 255, 0.22);
+  background: rgba(12, 14, 18, 0.72);
+  color: #9fd0ff;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: center;
 }
 
 .odds-panel--under-more-games {

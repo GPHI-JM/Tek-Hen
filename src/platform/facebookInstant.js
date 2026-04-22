@@ -3,6 +3,7 @@ const facebookContext = {
   initialized: false,
   started: false,
   loadingPercent: 0,
+  appId: null,
   playerId: null,
   playerName: null,
   photoUrl: null,
@@ -21,6 +22,34 @@ function getFBInstant() {
     return null
   }
   return window.FBInstant ?? null
+}
+
+function detectFacebookAppId() {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  const sources = []
+  if (window.location?.href) {
+    sources.push(window.location.href)
+  }
+  if (typeof document !== 'undefined' && document.referrer) {
+    sources.push(document.referrer)
+  }
+  if (window.location?.ancestorOrigins) {
+    sources.push(...Array.from(window.location.ancestorOrigins))
+  }
+
+  for (const source of sources) {
+    const match = String(source).match(
+      /(?:app_id=|play\/|instantgames\/|games\/)(\d{10,20})/
+    )
+    if (match) {
+      return match[1]
+    }
+  }
+
+  return null
 }
 
 function flushLoadingProgress() {
@@ -83,6 +112,7 @@ export async function initializeFacebookInstantGames() {
     }
 
     facebookContext.enabled = true
+    facebookContext.appId = detectFacebookAppId()
     primeFacebookLoadingProgress(1)
     await FBInstant.initializeAsync()
     facebookContext.initialized = true
@@ -123,6 +153,10 @@ export async function startFacebookGame() {
 export function switchFacebookInstantGame(appId, data = {}) {
   if (!appId) {
     return false
+  }
+
+  if (facebookContext.appId && String(appId) === String(facebookContext.appId)) {
+    return null
   }
 
   const FBInstant = getFBInstant()
