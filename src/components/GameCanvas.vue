@@ -7,11 +7,6 @@ import {
   tryResumeFightAudioSync,
   warmFightAudioBuffer,
 } from '../game/fightSounds.js'
-import {
-  primeFacebookLoadingProgress,
-  syncFacebookContextToRegistry,
-  startFacebookGame,
-} from '../platform/facebookInstant.js'
 
 const emit = defineEmits(['attack', 'fightEnd'])
 const store = useGameStore()
@@ -39,14 +34,11 @@ watch(
 onMounted(() => {
   if (gameContainer.value) {
     window.__shabongEmit = handleEmit
-    primeFacebookLoadingProgress(5)
     void warmFightAudioBuffer()
-    void startFacebookGame().catch(() => null)
 
     requestAnimationFrame(() => {
       gameInstance = createGame(handleEmit)
       syncFightPicksToRegistry(store.selectedRoosterVariantId, store.selectedSide)
-      syncFacebookContextToRegistry(gameInstance)
     })
   }
 })

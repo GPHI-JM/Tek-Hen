@@ -12,9 +12,6 @@ import {
   warmFightAudioBuffer,
 } from './game/fightSounds.js'
 import { publicAssetPath } from '../shared/roosterVariants.js'
-import {
-  switchFacebookInstantGame,
-} from './platform/facebookInstant.js'
 
 const store = useGameStore()
 const showFight = ref(false)
@@ -218,14 +215,10 @@ async function openExternalGameLink(game, event) {
   if (typeof window === 'undefined') {
     return
   }
-  const didSwitch = await switchFacebookInstantGame(game.appId, {
-    source: 'tek-hen',
-  }).catch(() => false)
-  if (didSwitch) {
-    return
+  const opened = window.open(game.fallbackUrl, '_blank', 'noopener,noreferrer')
+  if (!opened) {
+    window.location.assign(game.fallbackUrl)
   }
-
-  window.location.assign(game.fallbackUrl)
 }
 
 const cabinetShellStyle = computed(() => ({
