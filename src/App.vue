@@ -189,8 +189,9 @@ function updateCabinetScale() {
     const frame = cabinetFrame.value
     const baseWidth = 1120
     const baseHeight = frame.offsetHeight || 1
-    const viewportWidth = Math.max(window.innerWidth - 16, 320)
-    const viewportHeight = Math.max(window.innerHeight - 16, 240)
+    const viewport = window.visualViewport
+    const viewportWidth = Math.max((viewport?.width ?? window.innerWidth) - 16, 320)
+    const viewportHeight = Math.max((viewport?.height ?? window.innerHeight) - 16, 240)
     const nextScale = Math.min(1, viewportWidth / baseWidth, viewportHeight / baseHeight)
 
     cabinetScale.value = Number.isFinite(nextScale) ? Math.max(nextScale, 0.25) : 1
@@ -239,6 +240,8 @@ onMounted(async () => {
     cabinetResizeObserver.observe(cabinetFrame.value)
     window.addEventListener('resize', updateCabinetScale, { passive: true })
     window.addEventListener('orientationchange', updateCabinetScale, { passive: true })
+    window.visualViewport?.addEventListener?.('resize', updateCabinetScale, { passive: true })
+    window.visualViewport?.addEventListener?.('scroll', updateCabinetScale, { passive: true })
   }
 })
 
@@ -263,6 +266,8 @@ onUnmounted(() => {
   if (typeof window !== 'undefined') {
     window.removeEventListener('resize', updateCabinetScale)
     window.removeEventListener('orientationchange', updateCabinetScale)
+    window.visualViewport?.removeEventListener?.('resize', updateCabinetScale)
+    window.visualViewport?.removeEventListener?.('scroll', updateCabinetScale)
     window.cancelAnimationFrame(cabinetScaleRafId)
   }
 })
@@ -667,7 +672,7 @@ body,
   background-size: cover;
   background-repeat: no-repeat;
   background-attachment: fixed;
-  min-height: 100vh;
+  min-height: 100svh;
   color: #e8e4dc;
 }
 
@@ -675,13 +680,14 @@ body,
   body,
   .cabinet-body {
     background-attachment: scroll;
+    overflow: hidden;
   }
 }
 </style>
 
 <style scoped>
 .app {
-  min-height: 100vh;
+  min-height: 100svh;
   width: 100%;
   display: flex;
   align-items: flex-start;
@@ -696,6 +702,7 @@ body,
   justify-content: center;
   align-items: flex-start;
   padding-top: 8px;
+  min-height: 0;
 }
 
 .cabinet-frame {
@@ -2056,47 +2063,103 @@ body,
 
 @media (max-width: 900px) {
   .app {
-    padding: 8px 12px 16px;
+    padding: 8px 10px 16px;
+  }
+
+  .cabinet-frame {
+    width: min(1120px, calc(100vw - 20px));
+    max-width: 100%;
+    transform: none;
+    padding: 14px 12px 18px;
+  }
+
+  .cabinet-frame-shell {
+    width: 100%;
+    min-height: calc(100svh - 24px);
   }
 
   .lobby-content {
-    gap: 16px;
-    padding: 18px 12px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 14px 12px;
+    padding: 16px 10px;
   }
 
   .lobby-content__timer {
+    grid-column: 1 / -1;
     width: min(100%, 15rem);
     min-width: 0;
     order: -1;
+    justify-self: center;
+  }
+
+  .rooster-preview {
+    width: 100%;
   }
 
   .rooster-img-shell,
   .rooster-placeholder {
-    width: min(42vw, 220px);
-    height: min(42vw, 220px);
+    width: min(36vw, 200px);
+    height: min(36vw, 200px);
+  }
+
+  .footer {
+    grid-template-columns: 1fr;
+  }
+
+  .footer-panel {
+    min-width: 0;
+    width: 100%;
   }
 }
 
 @media (max-width: 640px) {
+  .app {
+    padding: 4px 6px 8px;
+    overflow: hidden;
+  }
+
   .cabinet-frame {
-    padding: 16px 14px 20px;
+    width: min(calc(100vw - 12px), 1120px);
+    padding: 10px 8px 12px;
+    border-radius: 16px;
   }
 
   .header {
-    gap: 8px;
-    padding: 8px 10px;
+    gap: 6px;
+    padding: 6px 8px 8px;
+    flex-wrap: wrap;
   }
 
   .logo {
-    height: 86px;
+    height: 66px;
+  }
+
+  .wallet-section {
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .wallet-btn-wrap,
+  .balance-plate {
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .arena-section:not(.arena-section--fight) {
     border-radius: 12px 12px 18px 18px;
   }
 
+  .arena-section,
+  .fight-wrapper,
+  .lobby-wrapper {
+    min-height: clamp(220px, 52vw, 300px);
+  }
+
   .fight-wrapper--tv {
-    padding: 8px 0 14px;
+    padding: 6px 0 10px;
   }
 
   .vintage-tv {
@@ -2104,29 +2167,114 @@ body,
   }
 
   .lobby-content {
-    gap: 12px;
-    padding: 14px 8px;
+    gap: 8px 6px;
+    padding: 10px 4px;
   }
 
   .rooster-preview {
-    width: calc(50% - 8px);
+    width: 100%;
     min-width: 0;
   }
 
   .rooster-img-shell,
   .rooster-placeholder {
-    width: min(40vw, 180px);
-    height: min(40vw, 180px);
+    width: min(40vw, 160px);
+    height: min(40vw, 160px);
   }
 
   .lobby-side-label__outer {
-    width: min(42vw, 148px);
+    width: min(46vw, 150px);
   }
 
   .lobby-side-label--meron .lobby-side-label__text,
   .lobby-side-label--wala .lobby-side-label__text {
-    font-size: 18px;
+    font-size: 17px;
     letter-spacing: 0.2em;
+  }
+
+  .footer-panel {
+    padding: 10px 10px 12px;
+  }
+
+  .more-games-row {
+    gap: 8px;
+  }
+
+  .more-games-slot {
+    width: 56px;
+    height: 56px;
+  }
+
+  .more-games-icon {
+    max-width: 44px;
+    max-height: 44px;
+  }
+}
+
+@media (max-width: 420px) {
+  .app {
+    padding: 4px 4px 6px;
+  }
+
+  .cabinet-frame {
+    width: calc(100vw - 8px);
+    padding: 8px 6px 10px;
+  }
+
+  .logo {
+    height: 58px;
+  }
+
+  .wallet-section {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .wallet-btn {
+    width: 100%;
+  }
+
+  .balance-plate {
+    width: 100%;
+    padding: 10px 12px;
+  }
+
+  .arena-section,
+  .fight-wrapper,
+  .lobby-wrapper {
+    min-height: clamp(200px, 60vw, 260px);
+  }
+
+  .lobby-content {
+    grid-template-columns: 1fr;
+  }
+
+  .lobby-content__timer {
+    width: 100%;
+  }
+
+  .rooster-img-shell,
+  .rooster-placeholder {
+    width: min(68vw, 144px);
+    height: min(68vw, 144px);
+  }
+
+  .lobby-side-label__outer {
+    width: min(72vw, 156px);
+  }
+
+  .more-games-row {
+    flex-wrap: wrap;
+  }
+
+  .more-games-slot {
+    width: 52px;
+    height: 52px;
+  }
+
+  .more-games-icon {
+    max-width: 40px;
+    max-height: 40px;
   }
 }
 
