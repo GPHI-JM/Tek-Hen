@@ -680,7 +680,8 @@ body,
   body,
   .cabinet-body {
     background-attachment: scroll;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 }
 </style>
@@ -2117,7 +2118,8 @@ body,
 @media (max-width: 640px) {
   .app {
     padding: 4px 6px 8px;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   .cabinet-frame {
@@ -2214,6 +2216,8 @@ body,
 @media (max-width: 420px) {
   .app {
     padding: 4px 4px 6px;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   .cabinet-frame {
