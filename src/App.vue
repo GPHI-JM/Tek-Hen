@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, watch, onMounted, onUnmounted, computed, nextTick } from 'vue'
+import { ref, reactive, watch, onMounted, onUnmounted, computed } from 'vue'
 import { useGameStore, FREE_TOP_UP_AMOUNT, PAYOUT_MULTIPLIER } from './stores/gameStore'
 import GameCanvas from './components/GameCanvas.vue'
 import GameTimer from './components/GameTimer.vue'
@@ -7,23 +7,14 @@ import BettingTicket from './components/BettingTicket.vue'
 import RoosterSelect from './components/RoosterSelect.vue'
 import WinnerModal from './components/WinnerModal.vue'
 import PhoneVerifyModal from './components/PhoneVerifyModal.vue'
-import {
-  installFightAudioResumeOnFirstGesture,
-  warmFightAudioBuffer,
-} from './game/fightSounds.js'
-import { publicAssetPath } from '../shared/roosterVariants.js'
+import { installFightAudioResumeOnFirstGesture } from './game/fightSounds.js'
 
 const store = useGameStore()
 const showFight = ref(false)
 const showWinnerModal = ref(false)
 const showPhoneVerifyModal = ref(false)
 const showScreenBlood = ref(false)
-const cabinetFrame = ref(null)
-const cabinetShell = ref(null)
-const cabinetScale = ref(1)
 let screenBloodTimerId = null
-let cabinetResizeObserver = null
-let cabinetScaleRafId = 0
 
 function handleAttack(data) {
   if (!data?.isCritical) return
@@ -58,7 +49,7 @@ function scheduleMeronSsBoltFlash(boltIndex) {
   if (typeof window === 'undefined') {
     return
   }
-  if (isCompactLobbyViewport()) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     return
   }
   const boltKeys = ['b0', 'b1', 'b2', 'b3']
@@ -81,7 +72,7 @@ function startMeronSsBoltLoop() {
   if (typeof window === 'undefined') {
     return
   }
-  if (isCompactLobbyViewport()) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     return
   }
   for (let boltIndex = 0; boltIndex < 4; boltIndex += 1) {
@@ -110,7 +101,7 @@ function scheduleWalaSsBoltFlash(boltIndex) {
   if (typeof window === 'undefined') {
     return
   }
-  if (isCompactLobbyViewport()) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     return
   }
   const boltKeys = ['b0', 'b1', 'b2', 'b3']
@@ -133,7 +124,7 @@ function startWalaSsBoltLoop() {
   if (typeof window === 'undefined') {
     return
   }
-  if (isCompactLobbyViewport()) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     return
   }
   for (let boltIndex = 0; boltIndex < 4; boltIndex += 1) {
@@ -145,104 +136,32 @@ const freeTopUpTeaser = computed(
   () => `+ P ${FREE_TOP_UP_AMOUNT.toLocaleString()}`
 )
 
-const arenaBgUrl = computed(() => publicAssetPath('arena-bg.png'))
-const logoUrl = computed(() => publicAssetPath('logo.png'))
-const meronUrl = computed(() => publicAssetPath('meron.png'))
-const walaUrl = computed(() => publicAssetPath('wala.png'))
-const tekHenUrl = computed(() => publicAssetPath('more-games/tekhen.png'))
 const moreGames = [
   {
-    appId: '1431508008453701',
-    name: 'Net Flex',
-    fallbackUrl: 'https://fb.gg/play/1431508008453701',
-    imageUrl: publicAssetPath('more-games/basketball.png'),
+    name: 'Basketball',
+    url: 'https://fb.gg/play/1431508008453701',
+    image: '/more-games/basketball.png',
+    alt: 'Basketball game',
+    blendDark: false,
   },
   {
-    appId: '4166337263499439',
-    name: 'Power Hammer',
-    fallbackUrl: 'https://fb.gg/play/4166337263499439',
-    imageUrl: publicAssetPath('more-games/magic-hammer.png'),
+    name: 'Magic Hammer',
+    url: 'https://fb.gg/play/4166337263499439',
+    image: '/more-games/magic-hammer.png',
+    alt: 'Magic hammer game',
+    blendDark: false,
   },
   {
-    appId: '1463506198613599',
     name: 'Bingo Fiesta',
-    fallbackUrl: 'https://fb.gg/play/1463506198613599',
-    imageUrl: publicAssetPath('more-games/bingo-fiesta.png'),
-    darkBlend: true,
+    url: 'https://fb.gg/play/1463506198613599',
+    image: '/more-games/bingo-fiesta.png',
+    alt: 'Bingo Fiesta game',
+    blendDark: true,
   },
 ]
 
-function isCompactLobbyViewport() {
-  if (typeof window === 'undefined') {
-    return false
-  }
-  return window.innerWidth <= 900 || window.innerHeight <= 720
-}
-
-function updateCabinetScale() {
-  if (typeof window === 'undefined' || !cabinetFrame.value) {
-    return
-  }
-
-  window.cancelAnimationFrame(cabinetScaleRafId)
-  cabinetScaleRafId = window.requestAnimationFrame(() => {
-    const frame = cabinetFrame.value
-    const baseWidth = 1120
-    const baseHeight = frame.offsetHeight || 1
-    const viewport = window.visualViewport
-    const viewportWidth = Math.max((viewport?.width ?? window.innerWidth) - 16, 320)
-    const viewportHeight = Math.max((viewport?.height ?? window.innerHeight) - 16, 240)
-    const nextScale = Math.min(1, viewportWidth / baseWidth, viewportHeight / baseHeight)
-
-    cabinetScale.value = Number.isFinite(nextScale) ? Math.max(nextScale, 0.25) : 1
-  })
-}
-
-function returnToLobby() {
-  showFight.value = false
-  if (typeof window === 'undefined') {
-    return
-  }
-  window.requestAnimationFrame(() => {
-    cabinetFrame.value?.scrollIntoView?.({
-      behavior: 'smooth',
-      block: 'start',
-    })
-  })
-}
-
-async function openExternalGameLink(game, event) {
-  event?.preventDefault?.()
-  if (typeof window === 'undefined') {
-    return
-  }
-  const opened = window.open(game.fallbackUrl, '_blank', 'noopener,noreferrer')
-  if (!opened) {
-    window.location.assign(game.fallbackUrl)
-  }
-}
-
-const cabinetShellStyle = computed(() => ({
-  '--cabinet-scale': String(cabinetScale.value),
-}))
-
-onMounted(async () => {
+onMounted(() => {
   installFightAudioResumeOnFirstGesture()
-  void warmFightAudioBuffer().catch(() => null)
-
-  await nextTick()
-  updateCabinetScale()
-
-  if (typeof window !== 'undefined' && 'ResizeObserver' in window && cabinetFrame.value) {
-    cabinetResizeObserver = new ResizeObserver(() => {
-      updateCabinetScale()
-    })
-    cabinetResizeObserver.observe(cabinetFrame.value)
-    window.addEventListener('resize', updateCabinetScale, { passive: true })
-    window.addEventListener('orientationchange', updateCabinetScale, { passive: true })
-    window.visualViewport?.addEventListener?.('resize', updateCabinetScale, { passive: true })
-    window.visualViewport?.addEventListener?.('scroll', updateCabinetScale, { passive: true })
-  }
 })
 
 watch(
@@ -250,7 +169,7 @@ watch(
   (isFightView) => {
     clearWalaSsBoltSchedulers()
     clearMeronSsBoltSchedulers()
-    if (!isFightView && !isCompactLobbyViewport()) {
+    if (!isFightView) {
       startWalaSsBoltLoop()
       startMeronSsBoltLoop()
     }
@@ -261,15 +180,6 @@ watch(
 onUnmounted(() => {
   clearWalaSsBoltSchedulers()
   clearMeronSsBoltSchedulers()
-  cabinetResizeObserver?.disconnect()
-  cabinetResizeObserver = null
-  if (typeof window !== 'undefined') {
-    window.removeEventListener('resize', updateCabinetScale)
-    window.removeEventListener('orientationchange', updateCabinetScale)
-    window.visualViewport?.removeEventListener?.('resize', updateCabinetScale)
-    window.visualViewport?.removeEventListener?.('scroll', updateCabinetScale)
-    window.cancelAnimationFrame(cabinetScaleRafId)
-  }
 })
 
 watch(
@@ -327,11 +237,10 @@ function openPhoneVerifyModal(event) {
 
 <template>
   <div class="app">
-    <div ref="cabinetShell" class="cabinet-frame-shell" :style="cabinetShellStyle">
-      <div ref="cabinetFrame" class="cabinet-frame">
+    <div class="cabinet-frame">
       <header class="header">
         <div class="header-left" />
-        <img :src="logoUrl" alt="TEK-HEN" class="logo" />
+        <img src="/logo.png" alt="TEK-HEN" class="logo" />
         <div class="wallet-section">
           <div class="wallet-btn-wrap">
             <span v-if="store.canUseFreeTopUp" class="wallet-btn-hot" aria-hidden="true">HOT</span>
@@ -366,180 +275,174 @@ function openPhoneVerifyModal(event) {
       </header>
 
       <main class="arena-layout">
-        <div
-          class="arena-section"
-          :class="{ 'arena-section--fight': showFight }"
-          :style="showFight ? undefined : { backgroundImage: `url(${arenaBgUrl})` }"
-        >
-          <div
-            class="fight-wrapper fight-wrapper--tv"
-            :class="{ 'fight-wrapper--active': showFight }"
-            aria-label="Fight view"
-          >
-            <div class="vintage-tv">
-              <div class="vintage-tv__bezel">
-                <div class="vintage-tv__screen">
-                  <div
-                    class="screen-blood-overlay"
-                    :class="{ 'screen-blood-overlay--active': showScreenBlood }"
-                    aria-hidden="true"
-                  />
-                  <GameCanvas
-                    @fight-end="handleFightEnd"
-                    @attack="handleAttack"
-                  />
+        <div class="arena-section" :class="{ 'arena-section--fight': showFight }">
+          <Transition name="fade" mode="out-in">
+            <div v-if="showFight" key="fight" class="fight-wrapper fight-wrapper--tv">
+              <div class="vintage-tv" aria-label="Fight view">
+                <div class="vintage-tv__bezel">
+                  <div class="vintage-tv__screen">
+                    <div
+                      class="screen-blood-overlay"
+                      :class="{ 'screen-blood-overlay--active': showScreenBlood }"
+                      aria-hidden="true"
+                    />
+                    <GameCanvas
+                      @fight-end="handleFightEnd"
+                      @attack="handleAttack"
+                    />
+                  </div>
                 </div>
-              </div>
-              <div class="vintage-tv__controls">
-                <div class="vintage-tv__speaker-grille" aria-hidden="true" />
-                <div class="vintage-tv__controls-spacer" aria-hidden="true" />
-                <div class="vintage-tv__knobs" aria-hidden="true">
-                  <span class="vintage-tv__knob" />
-                  <span class="vintage-tv__knob" />
-                  <span class="vintage-tv__knob vintage-tv__knob--small" />
+                <div class="vintage-tv__controls">
+                  <div class="vintage-tv__speaker-grille" aria-hidden="true" />
+                  <div class="vintage-tv__controls-spacer" aria-hidden="true" />
+                  <div class="vintage-tv__knobs" aria-hidden="true">
+                    <span class="vintage-tv__knob" />
+                    <span class="vintage-tv__knob" />
+                    <span class="vintage-tv__knob vintage-tv__knob--small" />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-          <div class="lobby-wrapper">
-            <div class="lobby-content">
-              <div class="rooster-preview rooster-preview--meron">
-                <div class="lobby-rooster-anim lobby-rooster-anim--meron">
-                  <div class="lobby-rooster-anim__heat" aria-hidden="true" />
-                  <div class="lobby-rooster-anim__atmosphere" aria-hidden="true">
-                    <span class="lobby-rooster-anim__smoke lobby-rooster-anim__smoke--a" />
-                    <span class="lobby-rooster-anim__smoke lobby-rooster-anim__smoke--b" />
-                    <span class="lobby-rooster-anim__smoke lobby-rooster-anim__smoke--c" />
-                    <span class="lobby-rooster-anim__wind lobby-rooster-anim__wind--a" />
-                    <span class="lobby-rooster-anim__wind lobby-rooster-anim__wind--b" />
+            <div v-else key="lobby" class="lobby-wrapper">
+              <div class="lobby-content">
+                <div class="rooster-preview rooster-preview--meron">
+                  <div class="lobby-rooster-anim lobby-rooster-anim--meron">
+                    <div class="lobby-rooster-anim__heat" aria-hidden="true" />
+                    <div class="lobby-rooster-anim__atmosphere" aria-hidden="true">
+                      <span class="lobby-rooster-anim__smoke lobby-rooster-anim__smoke--a" />
+                      <span class="lobby-rooster-anim__smoke lobby-rooster-anim__smoke--b" />
+                      <span class="lobby-rooster-anim__smoke lobby-rooster-anim__smoke--c" />
+                      <span class="lobby-rooster-anim__wind lobby-rooster-anim__wind--a" />
+                      <span class="lobby-rooster-anim__wind lobby-rooster-anim__wind--b" />
+                    </div>
+                    <div class="rooster-img-shell rooster-img-shell--meron-ss">
+                      <img src="/meron.png" alt="MERON rooster" class="rooster-placeholder" />
+                      <div class="lobby-rooster-anim__ss-sparks" aria-hidden="true">
+                        <svg
+                          class="lobby-rooster-anim__ss-sparks-svg"
+                          viewBox="0 0 100 100"
+                          preserveAspectRatio="xMidYMid meet"
+                        >
+                          <path
+                            pathLength="100"
+                            class="lobby-rooster-anim__ss-bolt"
+                            :class="{ 'lobby-rooster-anim__ss-bolt--visible': meronSsBolts.b0 }"
+                            d="M52 8 L46 22 L54 26 L44 44 L50 48 L40 68 L48 72 L42 88"
+                            fill="none"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                          <path
+                            pathLength="100"
+                            class="lobby-rooster-anim__ss-bolt lobby-rooster-anim__ss-bolt--thin"
+                            :class="{ 'lobby-rooster-anim__ss-bolt--visible': meronSsBolts.b1 }"
+                            d="M38 32 L32 48 L36 52 L28 66"
+                            fill="none"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                          <path
+                            pathLength="100"
+                            class="lobby-rooster-anim__ss-bolt lobby-rooster-anim__ss-bolt--thin"
+                            :class="{ 'lobby-rooster-anim__ss-bolt--visible': meronSsBolts.b2 }"
+                            d="M68 38 L74 52 L70 58 L76 74"
+                            fill="none"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                          <path
+                            pathLength="100"
+                            class="lobby-rooster-anim__ss-bolt"
+                            :class="{ 'lobby-rooster-anim__ss-bolt--visible': meronSsBolts.b3 }"
+                            d="M58 52 L52 62 L56 66 L50 82"
+                            fill="none"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                        </svg>
+                      </div>
+                    </div>
                   </div>
-                  <div class="rooster-img-shell rooster-img-shell--meron-ss">
-                    <img :src="meronUrl" alt="MERON rooster" class="rooster-placeholder" />
-                    <div class="lobby-rooster-anim__ss-sparks" aria-hidden="true">
-                      <svg
-                        class="lobby-rooster-anim__ss-sparks-svg"
-                        viewBox="0 0 100 100"
-                        preserveAspectRatio="xMidYMid meet"
-                      >
-                        <path
-                          pathLength="100"
-                          class="lobby-rooster-anim__ss-bolt"
-                          :class="{ 'lobby-rooster-anim__ss-bolt--visible': meronSsBolts.b0 }"
-                          d="M52 8 L46 22 L54 26 L44 44 L50 48 L40 68 L48 72 L42 88"
-                          fill="none"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                        <path
-                          pathLength="100"
-                          class="lobby-rooster-anim__ss-bolt lobby-rooster-anim__ss-bolt--thin"
-                          :class="{ 'lobby-rooster-anim__ss-bolt--visible': meronSsBolts.b1 }"
-                          d="M38 32 L32 48 L36 52 L28 66"
-                          fill="none"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                        <path
-                          pathLength="100"
-                          class="lobby-rooster-anim__ss-bolt lobby-rooster-anim__ss-bolt--thin"
-                          :class="{ 'lobby-rooster-anim__ss-bolt--visible': meronSsBolts.b2 }"
-                          d="M68 38 L74 52 L70 58 L76 74"
-                          fill="none"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                        <path
-                          pathLength="100"
-                          class="lobby-rooster-anim__ss-bolt"
-                          :class="{ 'lobby-rooster-anim__ss-bolt--visible': meronSsBolts.b3 }"
-                          d="M58 52 L52 62 L56 66 L50 82"
-                          fill="none"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                      </svg>
+                  <div class="lobby-side-label lobby-side-label--meron">
+                    <div class="lobby-side-label__outer">
+                      <div class="lobby-side-label__inner">
+                        <span class="lobby-side-label__text">MERON</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div class="lobby-side-label lobby-side-label--meron">
-                  <div class="lobby-side-label__outer">
-                    <div class="lobby-side-label__inner">
-                      <span class="lobby-side-label__text">MERON</span>
+                <div class="lobby-content__timer">
+                  <GameTimer />
+                </div>
+                <div class="rooster-preview rooster-preview--wala">
+                  <div class="lobby-rooster-anim lobby-rooster-anim--wala">
+                    <div class="lobby-rooster-anim__heat" aria-hidden="true" />
+                    <div class="lobby-rooster-anim__atmosphere" aria-hidden="true">
+                      <span class="lobby-rooster-anim__smoke lobby-rooster-anim__smoke--a" />
+                      <span class="lobby-rooster-anim__smoke lobby-rooster-anim__smoke--b" />
+                      <span class="lobby-rooster-anim__smoke lobby-rooster-anim__smoke--c" />
+                      <span class="lobby-rooster-anim__wind lobby-rooster-anim__wind--a" />
+                      <span class="lobby-rooster-anim__wind lobby-rooster-anim__wind--b" />
+                    </div>
+                    <div class="rooster-img-shell rooster-img-shell--wala-ss">
+                      <img src="/wala.png" alt="WALA rooster" class="rooster-placeholder" />
+                      <div class="lobby-rooster-anim__ss-sparks" aria-hidden="true">
+                        <svg
+                          class="lobby-rooster-anim__ss-sparks-svg"
+                          viewBox="0 0 100 100"
+                          preserveAspectRatio="xMidYMid meet"
+                        >
+                          <path
+                            pathLength="100"
+                            class="lobby-rooster-anim__ss-bolt"
+                            :class="{ 'lobby-rooster-anim__ss-bolt--visible': walaSsBolts.b0 }"
+                            d="M52 8 L46 22 L54 26 L44 44 L50 48 L40 68 L48 72 L42 88"
+                            fill="none"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                          <path
+                            pathLength="100"
+                            class="lobby-rooster-anim__ss-bolt lobby-rooster-anim__ss-bolt--thin"
+                            :class="{ 'lobby-rooster-anim__ss-bolt--visible': walaSsBolts.b1 }"
+                            d="M38 32 L32 48 L36 52 L28 66"
+                            fill="none"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                          <path
+                            pathLength="100"
+                            class="lobby-rooster-anim__ss-bolt lobby-rooster-anim__ss-bolt--thin"
+                            :class="{ 'lobby-rooster-anim__ss-bolt--visible': walaSsBolts.b2 }"
+                            d="M68 38 L74 52 L70 58 L76 74"
+                            fill="none"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                          <path
+                            pathLength="100"
+                            class="lobby-rooster-anim__ss-bolt"
+                            :class="{ 'lobby-rooster-anim__ss-bolt--visible': walaSsBolts.b3 }"
+                            d="M58 52 L52 62 L56 66 L50 82"
+                            fill="none"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                        </svg>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-              <div class="lobby-content__timer">
-                <GameTimer />
-              </div>
-              <div class="rooster-preview rooster-preview--wala">
-                <div class="lobby-rooster-anim lobby-rooster-anim--wala">
-                  <div class="lobby-rooster-anim__heat" aria-hidden="true" />
-                  <div class="lobby-rooster-anim__atmosphere" aria-hidden="true">
-                    <span class="lobby-rooster-anim__smoke lobby-rooster-anim__smoke--a" />
-                    <span class="lobby-rooster-anim__smoke lobby-rooster-anim__smoke--b" />
-                    <span class="lobby-rooster-anim__smoke lobby-rooster-anim__smoke--c" />
-                    <span class="lobby-rooster-anim__wind lobby-rooster-anim__wind--a" />
-                    <span class="lobby-rooster-anim__wind lobby-rooster-anim__wind--b" />
-                  </div>
-                  <div class="rooster-img-shell rooster-img-shell--wala-ss">
-                    <img :src="walaUrl" alt="WALA rooster" class="rooster-placeholder" />
-                    <div class="lobby-rooster-anim__ss-sparks" aria-hidden="true">
-                      <svg
-                        class="lobby-rooster-anim__ss-sparks-svg"
-                        viewBox="0 0 100 100"
-                        preserveAspectRatio="xMidYMid meet"
-                      >
-                        <path
-                          pathLength="100"
-                          class="lobby-rooster-anim__ss-bolt"
-                          :class="{ 'lobby-rooster-anim__ss-bolt--visible': walaSsBolts.b0 }"
-                          d="M52 8 L46 22 L54 26 L44 44 L50 48 L40 68 L48 72 L42 88"
-                          fill="none"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                        <path
-                          pathLength="100"
-                          class="lobby-rooster-anim__ss-bolt lobby-rooster-anim__ss-bolt--thin"
-                          :class="{ 'lobby-rooster-anim__ss-bolt--visible': walaSsBolts.b1 }"
-                          d="M38 32 L32 48 L36 52 L28 66"
-                          fill="none"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                        <path
-                          pathLength="100"
-                          class="lobby-rooster-anim__ss-bolt lobby-rooster-anim__ss-bolt--thin"
-                          :class="{ 'lobby-rooster-anim__ss-bolt--visible': walaSsBolts.b2 }"
-                          d="M68 38 L74 52 L70 58 L76 74"
-                          fill="none"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                        <path
-                          pathLength="100"
-                          class="lobby-rooster-anim__ss-bolt"
-                          :class="{ 'lobby-rooster-anim__ss-bolt--visible': walaSsBolts.b3 }"
-                          d="M58 52 L52 62 L56 66 L50 82"
-                          fill="none"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-                <div class="lobby-side-label lobby-side-label--wala">
-                  <div class="lobby-side-label__outer">
-                    <div class="lobby-side-label__inner">
-                      <span class="lobby-side-label__text">WALA</span>
+                  <div class="lobby-side-label lobby-side-label--wala">
+                    <div class="lobby-side-label__outer">
+                      <div class="lobby-side-label__inner">
+                        <span class="lobby-side-label__text">WALA</span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          </Transition>
         </div>
       </main>
 
@@ -549,71 +452,21 @@ function openPhoneVerifyModal(event) {
             <div class="cabinet-panel__title">MORE GAMES</div>
             <div class="more-games-grid" role="list">
               <div class="more-games-row">
-                <button v-if="false"
-                  type="button"
-                  class="more-games-slot more-games-slot--glow more-games-slot--button"
-                  role="listitem"
-                  aria-label="Return to Tek-Hen lobby"
-                  @click="returnToLobby"
-                >
-                  <img
-                    :src="tekHenUrl"
-                    alt="TEK-HEN — coming soon"
-                    class="more-games-icon more-games-icon--blend-dark"
-                    width="56"
-                    height="56"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                </button>
                 <a
+                  v-for="game in moreGames"
+                  :key="game.name"
                   class="more-games-slot more-games-slot--glow more-games-slot--link"
                   role="listitem"
-                  :href="moreGames[0].fallbackUrl"
-                  :aria-label="`Open ${moreGames[0].name}`"
-                  @click="openExternalGameLink(moreGames[0], $event)"
+                  :href="game.url"
+                  :aria-label="`Open ${game.name}`"
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
                   <img
-                    :src="moreGames[0].imageUrl"
-                    :alt="moreGames[0].name"
+                    :src="game.image"
+                    :alt="game.alt"
                     class="more-games-icon"
-                    width="56"
-                    height="56"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                </a>
-              </div>
-              <div class="more-games-row">
-                <a
-                  class="more-games-slot more-games-slot--glow more-games-slot--link"
-                  role="listitem"
-                  :href="moreGames[1].fallbackUrl"
-                  :aria-label="`Open ${moreGames[1].name}`"
-                  @click="openExternalGameLink(moreGames[1], $event)"
-                >
-                  <img
-                    :src="moreGames[1].imageUrl"
-                    :alt="moreGames[1].name"
-                    class="more-games-icon"
-                    width="56"
-                    height="56"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                </a>
-                <a
-                  class="more-games-slot more-games-slot--glow more-games-slot--link"
-                  role="listitem"
-                  :href="moreGames[2].fallbackUrl"
-                  :aria-label="`Open ${moreGames[2].name}`"
-                  @click="openExternalGameLink(moreGames[2], $event)"
-                >
-                  <img
-                    :src="moreGames[2].imageUrl"
-                    :alt="moreGames[2].name"
-                    class="more-games-icon"
-                    :class="{ 'more-games-icon--blend-dark': moreGames[2].darkBlend }"
+                    :class="{ 'more-games-icon--blend-dark': game.blendDark }"
                     width="56"
                     height="56"
                     loading="lazy"
@@ -646,7 +499,6 @@ function openPhoneVerifyModal(event) {
 
     <WinnerModal :show="showWinnerModal" @close="closeWinnerModal" />
     <PhoneVerifyModal :show="showPhoneVerifyModal" @close="showPhoneVerifyModal = false" />
-    </div>
   </div>
 </template>
 
@@ -672,7 +524,7 @@ body,
   background-size: cover;
   background-repeat: no-repeat;
   background-attachment: fixed;
-  min-height: 100svh;
+  min-height: 100vh;
   color: #e8e4dc;
 }
 
@@ -680,40 +532,24 @@ body,
   body,
   .cabinet-body {
     background-attachment: scroll;
-    overflow-x: hidden;
-    overflow-y: auto;
   }
 }
 </style>
 
 <style scoped>
 .app {
-  min-height: 100svh;
-  width: 100%;
+  min-height: 100vh;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding: 8px 24px 24px;
-  overflow-x: hidden;
-}
-
-.cabinet-frame-shell {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding-top: 8px;
-  min-height: 0;
+  padding: 24px;
 }
 
 .cabinet-frame {
   --cabinet-amber: #d4a017;
   --cabinet-amber-glow: rgba(255, 180, 40, 0.45);
-  width: 1120px;
-  max-width: none;
-  transform: scale(var(--cabinet-scale, 1));
-  transform-origin: top center;
-  box-sizing: border-box;
+  max-width: 1120px;
+  width: 100%;
   background: linear-gradient(
     165deg,
     #3d3834 0%,
@@ -1064,21 +900,13 @@ body,
   overflow: visible;
 }
 
-.more-games-slot--button {
-  display: none;
-  border: none;
-  background: transparent;
-  font: inherit;
-  cursor: pointer;
-}
-
 .more-games-slot--link {
   text-decoration: none;
   color: inherit;
+  cursor: pointer;
 }
 
-.more-games-slot--link:focus-visible,
-.more-games-slot--button:focus-visible {
+.more-games-slot--link:focus-visible {
   outline: 2px solid rgba(100, 200, 255, 0.9);
   outline-offset: 3px;
 }
@@ -1260,11 +1088,9 @@ body,
 
 .arena-section {
   width: 100%;
-  min-height: clamp(260px, 42vw, 380px);
+  min-height: 380px;
   max-width: 1200px;
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
+  background: url('/arena-bg.png') center / cover no-repeat;
   border: 4px solid #8b6914;
   border-radius: 12px;
   overflow: hidden;
@@ -1287,7 +1113,7 @@ body,
 .lobby-wrapper {
   width: 100%;
   height: 100%;
-  min-height: clamp(260px, 42vw, 380px);
+  min-height: 380px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1296,18 +1122,7 @@ body,
 }
 
 .fight-wrapper--tv {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
   padding: 12px 8px 20px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.25s ease;
-}
-
-.fight-wrapper--active {
-  opacity: 1;
-  pointer-events: auto;
 }
 
 .vintage-tv {
@@ -1502,8 +1317,6 @@ body,
   padding: 24px;
   width: 100%;
   flex-wrap: wrap;
-  position: relative;
-  z-index: 2;
 }
 
 .lobby-content__timer {
@@ -1516,6 +1329,153 @@ body,
   min-width: 11.5rem;
   max-width: 15rem;
   contain: layout;
+}
+
+@media (max-width: 900px) {
+  .app {
+    padding: 14px 10px;
+    align-items: flex-start;
+    max-width: 100vw;
+    overflow-x: hidden;
+    box-sizing: border-box;
+  }
+
+  .cabinet-frame {
+    padding: 14px 12px 18px;
+  }
+
+  .header {
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .logo {
+    height: min(88px, 18vw);
+  }
+
+  .arena-layout {
+    margin-bottom: 10px;
+    width: 100%;
+  }
+
+  .arena-section {
+    min-height: min(300px, 48vh);
+    max-width: 100%;
+  }
+
+  .lobby-wrapper {
+    min-height: min(300px, 50vh);
+    gap: 8px;
+    padding: 0 4px;
+    box-sizing: border-box;
+  }
+
+  .lobby-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 12px 10px;
+    padding: 12px 8px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    align-items: start;
+    justify-items: center;
+  }
+
+  .lobby-content__timer {
+    grid-column: 1 / -1;
+    width: 100%;
+    max-width: min(20rem, 94vw);
+    min-width: 0;
+    flex: unset;
+    justify-content: center;
+    justify-self: center;
+  }
+
+  .rooster-preview--meron {
+    grid-column: 1;
+    width: 100%;
+    max-width: 100%;
+    justify-self: center;
+  }
+
+  .rooster-preview--wala {
+    grid-column: 2;
+    width: 100%;
+    max-width: 100%;
+    justify-self: center;
+  }
+
+  .rooster-img-shell {
+    width: clamp(96px, 32vw, 200px);
+    height: clamp(96px, 32vw, 200px);
+  }
+
+  .rooster-placeholder {
+    width: clamp(96px, 32vw, 200px);
+    height: clamp(96px, 32vw, 200px);
+  }
+}
+
+@media (max-width: 480px) {
+  .lobby-content {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 10px 6px;
+  }
+
+  .rooster-preview--meron,
+  .rooster-preview--wala {
+    grid-column: 1;
+  }
+
+  .arena-section {
+    min-height: min(260px, 42vh);
+  }
+
+  .lobby-wrapper {
+    min-height: min(260px, 44vh);
+  }
+}
+
+@media (max-width: 640px) {
+  .logo {
+    height: min(64px, 22vw);
+  }
+
+  .wallet-btn {
+    padding: 8px 12px 8px 10px;
+    gap: 8px;
+  }
+
+  .rooster-img-shell {
+    width: clamp(72px, 42vw, 160px);
+    height: clamp(72px, 42vw, 160px);
+  }
+
+  .rooster-placeholder {
+    width: clamp(72px, 42vw, 160px);
+    height: clamp(72px, 42vw, 160px);
+  }
+
+  .rooster-preview {
+    gap: 3px;
+  }
+
+  .lobby-side-label__outer {
+    width: min(140px, 88vw);
+    height: 38px;
+    padding: 2px;
+  }
+
+  .lobby-side-label--meron .lobby-side-label__text,
+  .lobby-side-label--wala .lobby-side-label__text {
+    font-size: 18px;
+    letter-spacing: 0.28em;
+  }
 }
 
 .rooster-preview {
@@ -2062,223 +2022,32 @@ body,
   width: 100%;
 }
 
-@media (max-width: 900px) {
-  .app {
-    padding: 8px 10px 16px;
-  }
-
-  .cabinet-frame {
-    width: min(1120px, calc(100vw - 20px));
-    max-width: 100%;
-    transform: none;
-    padding: 14px 12px 18px;
-  }
-
-  .cabinet-frame-shell {
-    width: 100%;
-    min-height: calc(100svh - 24px);
-  }
-
-  .lobby-content {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    align-items: start;
-    gap: 14px 12px;
-    padding: 16px 10px;
-  }
-
-  .lobby-content__timer {
-    grid-column: 1 / -1;
-    width: min(100%, 15rem);
-    min-width: 0;
-    order: -1;
-    justify-self: center;
-  }
-
-  .rooster-preview {
-    width: 100%;
-  }
-
-  .rooster-img-shell,
-  .rooster-placeholder {
-    width: min(36vw, 200px);
-    height: min(36vw, 200px);
-  }
-
+@media (max-width: 960px) {
   .footer {
     grid-template-columns: 1fr;
   }
 
+  .footer-left-stack {
+    order: 3;
+  }
+
+  .footer-roosters-stack {
+    order: 1;
+  }
+
+  .betting-ticket-wrapper {
+    order: 2;
+  }
+
+  .footer-left-stack,
+  .footer-roosters-stack,
+  .betting-ticket-wrapper {
+    width: 100%;
+  }
+
   .footer-panel {
     min-width: 0;
     width: 100%;
-  }
-}
-
-@media (max-width: 640px) {
-  .app {
-    padding: 4px 6px 8px;
-    overflow-x: hidden;
-    overflow-y: auto;
-  }
-
-  .cabinet-frame {
-    width: min(calc(100vw - 12px), 1120px);
-    padding: 10px 8px 12px;
-    border-radius: 16px;
-  }
-
-  .header {
-    gap: 6px;
-    padding: 6px 8px 8px;
-    flex-wrap: wrap;
-  }
-
-  .logo {
-    height: 66px;
-  }
-
-  .wallet-section {
-    width: 100%;
-    justify-content: space-between;
-    gap: 8px;
-  }
-
-  .wallet-btn-wrap,
-  .balance-plate {
-    flex: 1 1 0;
-    min-width: 0;
-  }
-
-  .arena-section:not(.arena-section--fight) {
-    border-radius: 12px 12px 18px 18px;
-  }
-
-  .arena-section,
-  .fight-wrapper,
-  .lobby-wrapper {
-    min-height: clamp(220px, 52vw, 300px);
-  }
-
-  .fight-wrapper--tv {
-    padding: 6px 0 10px;
-  }
-
-  .vintage-tv {
-    max-width: 100%;
-  }
-
-  .lobby-content {
-    gap: 8px 6px;
-    padding: 10px 4px;
-  }
-
-  .rooster-preview {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .rooster-img-shell,
-  .rooster-placeholder {
-    width: min(40vw, 160px);
-    height: min(40vw, 160px);
-  }
-
-  .lobby-side-label__outer {
-    width: min(46vw, 150px);
-  }
-
-  .lobby-side-label--meron .lobby-side-label__text,
-  .lobby-side-label--wala .lobby-side-label__text {
-    font-size: 17px;
-    letter-spacing: 0.2em;
-  }
-
-  .footer-panel {
-    padding: 10px 10px 12px;
-  }
-
-  .more-games-row {
-    gap: 8px;
-  }
-
-  .more-games-slot {
-    width: 56px;
-    height: 56px;
-  }
-
-  .more-games-icon {
-    max-width: 44px;
-    max-height: 44px;
-  }
-}
-
-@media (max-width: 420px) {
-  .app {
-    padding: 4px 4px 6px;
-    overflow-x: hidden;
-    overflow-y: auto;
-  }
-
-  .cabinet-frame {
-    width: calc(100vw - 8px);
-    padding: 8px 6px 10px;
-  }
-
-  .logo {
-    height: 58px;
-  }
-
-  .wallet-section {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .wallet-btn {
-    width: 100%;
-  }
-
-  .balance-plate {
-    width: 100%;
-    padding: 10px 12px;
-  }
-
-  .arena-section,
-  .fight-wrapper,
-  .lobby-wrapper {
-    min-height: clamp(200px, 60vw, 260px);
-  }
-
-  .lobby-content {
-    grid-template-columns: 1fr;
-  }
-
-  .lobby-content__timer {
-    width: 100%;
-  }
-
-  .rooster-img-shell,
-  .rooster-placeholder {
-    width: min(68vw, 144px);
-    height: min(68vw, 144px);
-  }
-
-  .lobby-side-label__outer {
-    width: min(72vw, 156px);
-  }
-
-  .more-games-row {
-    flex-wrap: wrap;
-  }
-
-  .more-games-slot {
-    width: 52px;
-    height: 52px;
-  }
-
-  .more-games-icon {
-    max-width: 40px;
-    max-height: 40px;
   }
 }
 
@@ -2291,3 +2060,4 @@ body,
   opacity: 0;
 }
 </style>
+

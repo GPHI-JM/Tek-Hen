@@ -2,8 +2,6 @@
  * Fight SFX (Web Audio) + looping fight BGM (full `Clash_of_the_Iron_Crown.mp3`, no mid-track cut).
  */
 
-import { publicAssetPath } from '../../shared/roosterVariants.js'
-
 let sharedAudioContext = null
 
 /** @type {GainNode | null} */
@@ -79,31 +77,12 @@ export function installFightAudioResumeOnFirstGesture() {
   const primeAudioContext = () => {
     void resumeFightAudio()
   }
-  const targets = [window, window.document].filter(Boolean)
-  for (const target of targets) {
-    target.addEventListener('pointerdown', primeAudioContext, {
-      capture: true,
-      once: true,
-      passive: true,
-    })
-    target.addEventListener('touchstart', primeAudioContext, {
-      capture: true,
-      once: true,
-      passive: true,
-    })
-    target.addEventListener('click', primeAudioContext, {
-      capture: true,
-      once: true,
-      passive: true,
-    })
-    target.addEventListener('keydown', primeAudioContext, {
-      capture: true,
-      once: true,
-    })
-  }
+  window.addEventListener('pointerdown', primeAudioContext, { capture: true })
+  window.addEventListener('keydown', primeAudioContext, { capture: true })
+  window.addEventListener('touchend', primeAudioContext, { capture: true })
 }
 
-const FIGHT_MUSIC_URL = publicAssetPath('music/Clash_of_the_Iron_Crown.mp3')
+const FIGHT_MUSIC_URL = '/music/Clash_of_the_Iron_Crown.mp3'
 
 /** @type {AudioBuffer | null} */
 let fightMusicLoopBuffer = null
@@ -146,14 +125,6 @@ async function loadFightMusicLoopBuffer(audioContext) {
     })()
   }
   return fightMusicLoadPromise
-}
-
-export async function warmFightAudioBuffer() {
-  const audioContext = getAudioContext()
-  if (!audioContext) {
-    return null
-  }
-  return loadFightMusicLoopBuffer(audioContext)
 }
 
 function stopFightMusic() {

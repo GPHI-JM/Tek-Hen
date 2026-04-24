@@ -6,12 +6,6 @@
  * All other atlases are treated as facing right (default false).
  */
 
-export function publicAssetPath(path) {
-  const base = import.meta?.env?.BASE_URL ?? '/'
-  const normalizedBase = base.endsWith('/') ? base : `${base}/`
-  return `${normalizedBase}${path.replace(/^\/+/, '')}`
-}
-
 export const TALISAYIN_FRAMES = [
   't1.png',
   't2.png',
@@ -113,10 +107,10 @@ export const ROOSTER_VARIANTS = [
     animKey: 'idle-sweater',
     firstFrame: 's1.png',
     facesLeft: false,
-    imagePath: publicAssetPath('roosters/texture_sweater.png'),
-    jsonPath: publicAssetPath('roosters/texture_sweater.json'),
+    imagePath: '/roosters/texture_sweater.png',
+    jsonPath: '/roosters/texture_sweater.json',
     frameNames: SWEATER_FRAMES,
-    iconPath: publicAssetPath('roosters/sweater-icon.png'),
+    iconPath: '/roosters/sweater-icon.png',
   },
   {
     id: 'talisayin',
@@ -125,10 +119,10 @@ export const ROOSTER_VARIANTS = [
     animKey: 'idle-talisayin',
     firstFrame: 't1.png',
     facesLeft: false,
-    imagePath: publicAssetPath('roosters/texture_talisayin.png'),
-    jsonPath: publicAssetPath('roosters/texture_talisayin.json'),
+    imagePath: '/roosters/texture_talisayin.png',
+    jsonPath: '/roosters/texture_talisayin.json',
     frameNames: TALISAYIN_FRAMES,
-    iconPath: publicAssetPath('roosters/talisayin-icon.png'),
+    iconPath: '/roosters/talisayin-icon.png',
   },
   {
     id: 'bulik',
@@ -137,10 +131,10 @@ export const ROOSTER_VARIANTS = [
     animKey: 'wala-idle',
     firstFrame: 'w1.png',
     facesLeft: true,
-    imagePath: publicAssetPath('bulik-idle.png'),
-    jsonPath: publicAssetPath('bulik-idle.json'),
+    imagePath: '/bulik-idle.png',
+    jsonPath: '/bulik-idle.json',
     frameNames: null,
-    iconPath: publicAssetPath('roosters/bulik-icon.png'),
+    iconPath: '/roosters/bulik-icon.png',
   },
   {
     id: 'manok',
@@ -149,10 +143,10 @@ export const ROOSTER_VARIANTS = [
     animKey: 'meron-idle',
     firstFrame: 's1.png',
     facesLeft: false,
-    imagePath: publicAssetPath('manok-idle.png'),
-    jsonPath: publicAssetPath('manok-idle.json'),
+    imagePath: '/manok-idle.png',
+    jsonPath: '/manok-idle.json',
     frameNames: null,
-    iconPath: publicAssetPath('roosters/pula-icon.png'),
+    iconPath: '/roosters/pula-icon.png',
   },
   {
     id: 'whitekelso',
@@ -161,9 +155,9 @@ export const ROOSTER_VARIANTS = [
     animKey: 'idle-whitekelso',
     firstFrame: 'wk1.png',
     facesLeft: false,
-    imagePath: publicAssetPath('roosters/whitekelso.png'),
-    jsonPath: publicAssetPath('roosters/texture_whitekelso.json'),
+    imagePath: '/roosters/whitekelso.png',
+    jsonPath: '/roosters/texture_whitekelso.json',
     frameNames: WHITEKELSO_FRAMES,
-    iconPath: publicAssetPath('roosters/white-kelso-icon.png'),
+    iconPath: '/roosters/white-kelso-icon.png',
   },
 ]

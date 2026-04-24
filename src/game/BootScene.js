@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { ROOSTER_VARIANTS, publicAssetPath } from '../../shared/roosterVariants.js'
+import { ROOSTER_VARIANTS } from '../../shared/roosterVariants.js'
 
 const MERON_ATLAS = 'meron'
 const WALA_ATLAS = 'wala'
@@ -26,9 +26,9 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('arena-bg', publicAssetPath('arena-bg.png'))
-    this.load.atlas(MERON_ATLAS, publicAssetPath('manok-idle.png'), publicAssetPath('manok-idle.json'))
-    this.load.atlas(WALA_ATLAS, publicAssetPath('bulik-idle.png'), publicAssetPath('bulik-idle.json'))
+    this.load.image('arena-bg', '/arena-bg.png')
+    this.load.atlas(MERON_ATLAS, '/manok-idle.png', '/manok-idle.json')
+    this.load.atlas(WALA_ATLAS, '/bulik-idle.png', '/bulik-idle.json')
 
     for (const variant of ROOSTER_VARIANTS) {
       if (variant.frameNames) {
@@ -73,7 +73,6 @@ export class BootScene extends Phaser.Scene {
     if (emit) {
       this.registry.set('emit', emit)
     }
-
     this.scene.start('Fight')
   }
 }
