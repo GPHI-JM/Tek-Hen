@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, watch, onMounted, onUnmounted, computed } from 'vue'
+import { ref, reactive, watch, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { useGameStore, FREE_TOP_UP_AMOUNT, PAYOUT_MULTIPLIER } from './stores/gameStore'
 import GameCanvas from './components/GameCanvas.vue'
 import GameTimer from './components/GameTimer.vue'
@@ -14,7 +14,14 @@ const showFight = ref(false)
 const showWinnerModal = ref(false)
 const showPhoneVerifyModal = ref(false)
 const showScreenBlood = ref(false)
+const cabinetFrameShell = ref(null)
+const cabinetFrame = ref(null)
+const cabinetScale = ref(1)
+const cabinetFrameHeight = ref(0)
+const isMobilePortraitLocked = ref(false)
 let screenBloodTimerId = null
+let cabinetResizeObserver = null
+let cabinetScaleRafId = 0
 
 function handleAttack(data) {
   if (!data?.isCritical) return
@@ -160,8 +167,67 @@ const moreGames = [
   },
 ]
 
+const cabinetFrameShellStyle = computed(() => ({
+  height:
+    isMobilePortraitLocked.value || cabinetFrameHeight.value <= 0
+      ? '100vh'
+      : `${Math.round(cabinetFrameHeight.value * cabinetScale.value)}px`,
+}))
+
+function updateCabinetScale() {
+  if (typeof window === 'undefined' || !cabinetFrame.value) {
+    return
+  }
+
+  window.cancelAnimationFrame(cabinetScaleRafId)
+  cabinetScaleRafId = window.requestAnimationFrame(() => {
+    const frame = cabinetFrame.value
+    const viewport = window.visualViewport
+    const viewportWidth = Math.max((viewport?.width ?? window.innerWidth) - 16, 320)
+    const viewportHeight = Math.max((viewport?.height ?? window.innerHeight) - 16, 240)
+    const frameWidth = frame.offsetWidth || 1120
+    const frameHeight = frame.offsetHeight || 1
+    const mobilePortrait = window.matchMedia('(max-width: 900px) and (orientation: portrait)').matches
+    const mobileLandscape = window.matchMedia('(max-width: 1024px) and (orientation: landscape)').matches
+
+    cabinetFrameHeight.value = frameHeight
+    isMobilePortraitLocked.value = mobilePortrait
+
+    const nextScale = mobilePortrait
+      ? 1
+      : mobileLandscape
+        ? Math.min(1, viewportWidth / frameWidth, viewportHeight / frameHeight)
+        : Math.min(1, viewportWidth / frameWidth, viewportHeight / frameHeight)
+
+    cabinetScale.value = Number.isFinite(nextScale) ? Math.max(nextScale, 0.25) : 1
+
+    if (cabinetFrameShell.value) {
+      cabinetFrameShell.value.style.height = mobilePortrait
+        ? '100vh'
+        : `${Math.round(frameHeight * cabinetScale.value)}px`
+    }
+  })
+}
+
 onMounted(() => {
   installFightAudioResumeOnFirstGesture()
+  void nextTick().then(() => {
+    updateCabinetScale()
+
+    if (typeof window !== 'undefined' && 'ResizeObserver' in window && cabinetFrame.value) {
+      cabinetResizeObserver = new ResizeObserver(() => {
+        updateCabinetScale()
+      })
+      cabinetResizeObserver.observe(cabinetFrame.value)
+    }
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', updateCabinetScale, { passive: true })
+      window.addEventListener('orientationchange', updateCabinetScale, { passive: true })
+      window.visualViewport?.addEventListener?.('resize', updateCabinetScale, { passive: true })
+      window.visualViewport?.addEventListener?.('scroll', updateCabinetScale, { passive: true })
+    }
+  })
 })
 
 watch(
@@ -173,6 +239,7 @@ watch(
       startWalaSsBoltLoop()
       startMeronSsBoltLoop()
     }
+    void nextTick().then(updateCabinetScale)
   },
   { immediate: true }
 )
@@ -180,6 +247,15 @@ watch(
 onUnmounted(() => {
   clearWalaSsBoltSchedulers()
   clearMeronSsBoltSchedulers()
+  cabinetResizeObserver?.disconnect()
+  cabinetResizeObserver = null
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('resize', updateCabinetScale)
+    window.removeEventListener('orientationchange', updateCabinetScale)
+    window.visualViewport?.removeEventListener?.('resize', updateCabinetScale)
+    window.visualViewport?.removeEventListener?.('scroll', updateCabinetScale)
+    window.cancelAnimationFrame(cabinetScaleRafId)
+  }
 })
 
 watch(
@@ -237,7 +313,19 @@ function openPhoneVerifyModal(event) {
 
 <template>
   <div class="app">
-    <div class="cabinet-frame">
+    <div ref="cabinetFrameShell" class="cabinet-frame-shell" :style="cabinetFrameShellStyle">
+      <div class="mobile-landscape-lock" :class="{ 'mobile-landscape-lock--active': isMobilePortraitLocked }">
+        <div class="mobile-landscape-lock__card">
+          <div class="mobile-landscape-lock__title">LANDSCAPE ONLY</div>
+          <div class="mobile-landscape-lock__text">Please rotate your phone sideways to play.</div>
+        </div>
+      </div>
+      <div
+        ref="cabinetFrame"
+        class="cabinet-frame"
+        :class="{ 'cabinet-frame--portrait-hidden': isMobilePortraitLocked }"
+        :style="{ '--cabinet-scale': String(cabinetScale) }"
+      >
       <header class="header">
         <div class="header-left" />
         <img src="/logo.png" alt="TEK-HEN" class="logo" />
@@ -496,7 +584,7 @@ function openPhoneVerifyModal(event) {
         </div>
       </footer>
     </div>
-
+    </div>
     <WinnerModal :show="showWinnerModal" @close="closeWinnerModal" />
     <PhoneVerifyModal :show="showPhoneVerifyModal" @close="showPhoneVerifyModal = false" />
   </div>
@@ -525,6 +613,7 @@ body,
   background-repeat: no-repeat;
   background-attachment: fixed;
   min-height: 100vh;
+  min-height: 100dvh;
   color: #e8e4dc;
 }
 
@@ -539,17 +628,26 @@ body,
 <style scoped>
 .app {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
 }
 
+.cabinet-frame-shell {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
 .cabinet-frame {
   --cabinet-amber: #d4a017;
   --cabinet-amber-glow: rgba(255, 180, 40, 0.45);
-  max-width: 1120px;
-  width: 100%;
+  width: 1120px;
+  max-width: none;
   background: linear-gradient(
     165deg,
     #3d3834 0%,
@@ -568,7 +666,57 @@ body,
     inset 0 -20px 50px rgba(0, 0, 0, 0.45),
     0 20px 50px rgba(0, 0, 0, 0.65);
   padding: 22px 24px 28px;
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%) scale(var(--cabinet-scale, 1));
+  transform-origin: top center;
+}
+
+.cabinet-frame--portrait-hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.mobile-landscape-lock {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(ellipse at center, rgba(212, 160, 23, 0.18) 0%, rgba(0, 0, 0, 0.82) 68%),
+    rgba(0, 0, 0, 0.9);
+}
+
+.mobile-landscape-lock__card {
+  max-width: 320px;
+  width: 100%;
+  padding: 20px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(212, 160, 23, 0.45);
+  background: linear-gradient(180deg, rgba(35, 30, 24, 0.96), rgba(12, 10, 8, 0.98));
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+    0 18px 40px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.mobile-landscape-lock__title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.28em;
+  color: #d4a017;
+  margin-bottom: 8px;
+}
+
+.mobile-landscape-lock__text {
+  font-size: 14px;
+  line-height: 1.4;
+  color: #e8e4dc;
 }
 
 .cabinet-frame::before {
@@ -661,6 +809,17 @@ body,
   flex-shrink: 0;
   animation: logo-glow-pulse 3s ease-in-out infinite;
 }
+
+.rooster-placeholder {
+  width: 300px;
+  height: 300px;
+  object-fit: cover;
+  display: block;
+}
+.rooster-placeholder.mirrored {
+  transform: scaleX(-1);
+}
+
 
 @keyframes logo-glow-pulse {
   0%   {
@@ -1294,7 +1453,7 @@ body,
   height: 22px;
 }
 
-@media (max-width: 520px) {
+@media (max-width: 520px) and (orientation: portrait) {
   .vintage-tv {
     padding: 10px 12px 8px;
   }
@@ -1331,7 +1490,7 @@ body,
   contain: layout;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 900px) and (orientation: portrait) {
   .app {
     padding: 14px 10px;
     align-items: flex-start;
@@ -1361,87 +1520,71 @@ body,
   }
 
   .arena-section {
-    min-height: min(300px, 48vh);
+    min-height: min(280px, 48vh);
     max-width: 100%;
   }
 
   .lobby-wrapper {
-    min-height: min(300px, 50vh);
+    min-height: min(280px, 50vh);
     gap: 8px;
     padding: 0 4px;
     box-sizing: border-box;
   }
 
   .lobby-content {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto;
-    gap: 12px 10px;
-    padding: 12px 8px;
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 4px;
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
-    align-items: start;
     justify-items: center;
   }
 
   .lobby-content__timer {
-    grid-column: 1 / -1;
-    width: 100%;
-    max-width: min(20rem, 94vw);
+    order: 2;
+    flex: 0 1 36%;
+    width: auto;
+    max-width: 36%;
     min-width: 0;
     flex: unset;
     justify-content: center;
     justify-self: center;
+    align-self: center;
   }
 
   .rooster-preview--meron {
-    grid-column: 1;
-    width: 100%;
-    max-width: 100%;
+    order: 1;
+    flex: 0 1 32%;
+    width: auto;
+    max-width: 32%;
     justify-self: center;
   }
 
   .rooster-preview--wala {
-    grid-column: 2;
-    width: 100%;
-    max-width: 100%;
+    order: 3;
+    flex: 0 1 32%;
+    width: auto;
+    max-width: 32%;
     justify-self: center;
   }
 
   .rooster-img-shell {
-    width: clamp(96px, 32vw, 200px);
-    height: clamp(96px, 32vw, 200px);
+    width: clamp(72px, 18vw, 118px);
+    height: clamp(72px, 18vw, 118px);
   }
 
   .rooster-placeholder {
-    width: clamp(96px, 32vw, 200px);
-    height: clamp(96px, 32vw, 200px);
+    width: 75%;
+    height: 75%;
+    object-fit: contain;
   }
 }
 
-@media (max-width: 480px) {
-  .lobby-content {
-    grid-template-columns: 1fr;
-    gap: 8px;
-    padding: 10px 6px;
-  }
-
-  .rooster-preview--meron,
-  .rooster-preview--wala {
-    grid-column: 1;
-  }
-
-  .arena-section {
-    min-height: min(260px, 42vh);
-  }
-
-  .lobby-wrapper {
-    min-height: min(260px, 44vh);
-  }
-}
-
-@media (max-width: 640px) {
+@media (max-width: 640px) and (orientation: portrait) {
   .logo {
     height: min(64px, 22vw);
   }
@@ -1452,13 +1595,14 @@ body,
   }
 
   .rooster-img-shell {
-    width: clamp(72px, 42vw, 160px);
-    height: clamp(72px, 42vw, 160px);
+    width: clamp(72px, 26vw, 136px);
+    height: clamp(72px, 26vw, 136px);
   }
 
   .rooster-placeholder {
-    width: clamp(72px, 42vw, 160px);
-    height: clamp(72px, 42vw, 160px);
+    width: 50%;
+    height: 50%;
+    object-fit: contain;
   }
 
   .rooster-preview {
@@ -1466,15 +1610,66 @@ body,
   }
 
   .lobby-side-label__outer {
-    width: min(140px, 88vw);
-    height: 38px;
+    width: min(122px, 34vw);
+    height: 32px;
     padding: 2px;
+    transform: scale(0.78);
+    transform-origin: center center;
   }
 
   .lobby-side-label--meron .lobby-side-label__text,
   .lobby-side-label--wala .lobby-side-label__text {
-    font-size: 18px;
-    letter-spacing: 0.28em;
+    font-size: 17px;
+    letter-spacing: 0.26em;
+  }
+}
+
+@media (max-width: 430px) and (orientation: portrait) {
+  .arena-section {
+    min-height: min(260px, 48vh);
+  }
+
+  .lobby-wrapper {
+    min-height: min(260px, 50vh);
+    gap: 4px;
+    padding: 0;
+  }
+
+  .lobby-content {
+    gap: 4px;
+    padding: 6px 0;
+  }
+
+  .lobby-content__timer {
+    flex-basis: 34%;
+    max-width: 34%;
+  }
+
+  .rooster-preview {
+    gap: 2px;
+  }
+
+  .rooster-img-shell {
+    width: clamp(56px, 16vw, 96px);
+    height: clamp(56px, 16vw, 96px);
+  }
+
+  .lobby-rooster-anim {
+    animation: lobby-rooster-float-mobile 2.95s ease-in-out infinite;
+  }
+
+  .lobby-side-label__outer {
+    width: min(116px, 32vw);
+    height: 30px;
+    padding: 2px;
+    transform: scale(0.7);
+    transform-origin: center center;
+  }
+
+  .lobby-side-label--meron .lobby-side-label__text,
+  .lobby-side-label--wala .lobby-side-label__text {
+    font-size: 17px;
+    letter-spacing: 0.26em;
   }
 }
 
@@ -1495,15 +1690,6 @@ body,
   justify-content: center;
 }
 
-.rooster-placeholder {
-  width: 300px;
-  height: 300px;
-  object-fit: cover;
-  display: block;
-}
-.rooster-placeholder.mirrored {
-  transform: scaleX(-1);
-}
 
 /* Lobby rooster previews: float + heat + alpha glow (action style) */
 .lobby-rooster-anim {
@@ -1520,6 +1706,16 @@ body,
   }
   50% {
     transform: translateY(-11px) rotate(0.65deg);
+  }
+}
+
+@keyframes lobby-rooster-float-mobile {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-0.45deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(0.45deg);
   }
 }
 
@@ -2022,7 +2218,7 @@ body,
   width: 100%;
 }
 
-@media (max-width: 960px) {
+@media (max-width: 960px) and (orientation: portrait) {
   .footer {
     grid-template-columns: 1fr;
   }
@@ -2051,6 +2247,50 @@ body,
   }
 }
 
+@media (max-width: 900px) and (orientation: portrait) {
+  .mobile-landscape-lock {
+    display: flex;
+  }
+}
+
+@media (max-width: 1024px) and (orientation: landscape) {
+  .app {
+    padding: 10px 12px;
+    align-items: flex-start;
+    overflow-x: hidden;
+    overflow-y: auto;
+    box-sizing: border-box;
+  }
+
+  .cabinet-frame-shell {
+    width: 100%;
+  }
+
+  .footer {
+    grid-template-columns: minmax(200px, 1fr) minmax(260px, 420px) minmax(200px, 1fr);
+    gap: 14px;
+    align-items: start;
+    justify-content: center;
+  }
+
+  .footer-left-stack,
+  .footer-roosters-stack,
+  .betting-ticket-wrapper {
+    order: initial;
+    width: 100%;
+  }
+
+  .footer-left-stack,
+  .footer-roosters-stack {
+    min-width: 0;
+  }
+
+  .betting-ticket-wrapper {
+    padding: 0;
+    min-width: 0;
+  }
+}
+
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s ease;
@@ -2060,4 +2300,3 @@ body,
   opacity: 0;
 }
 </style>
-
