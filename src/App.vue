@@ -1360,6 +1360,7 @@ body,
 
 .vintage-tv__screen :deep(.game-canvas) {
   width: 100%;
+  height: 100%;
   max-width: none;
   margin: 0;
   min-height: 0;
@@ -1370,6 +1371,12 @@ body,
   transform: perspective(520px) rotateX(1.2deg);
   transform-origin: center center;
   filter: contrast(1.06) saturate(0.88) brightness(0.97);
+}
+
+.vintage-tv__screen :deep(.game-canvas canvas) {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
 }
 
 .screen-blood-overlay {

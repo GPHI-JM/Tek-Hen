@@ -56,11 +56,13 @@ onBeforeUnmount(() => {
 <style scoped>
 .game-canvas {
   width: 100%;
-  max-width: 1000px;
-  min-width: 320px;
-  min-height: 180px;
+  height: 100%;
+  max-width: none;
+  min-width: 0;
+  min-height: 0;
   margin: 0 auto;
   aspect-ratio: 16 / 9;
+  position: relative;
   overflow: hidden;
   border-radius: 4px;
   background: #d4b896;
@@ -68,5 +70,7 @@ onBeforeUnmount(() => {
 
 .game-canvas canvas {
   display: block;
+  width: 100% !important;
+  height: 100% !important;
 }
 </style>
