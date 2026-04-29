@@ -74,7 +74,7 @@ async function requestPhoneVerification() {
       game_id: props.gameContext.game_id,
       phone: digitsOnly,
       game_icon_path: props.gameContext.image_url,
-      points: String(FREE_TOP_UP_AMOUNT),
+      points: String(store.verificationPoints),
       is_verified: 1,
     }
 

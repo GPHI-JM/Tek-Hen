@@ -11,6 +11,8 @@ export const FREE_TOP_UP_AMOUNT = 250_000
 export const useGameStore = defineStore('game', () => {
   const balance = ref(250000)
   const freeTopUpClaimed = ref(false)
+  const highestBalanceReached = ref(250000)
+  const pointsForVerification = ref(250000)
   const betAmount = ref(10000)
   /** Your breed for the side you bet (MERON or WALA); the other side is a random other breed. */
   const selectedRoosterVariantId = ref('sweater')
@@ -21,14 +23,35 @@ export const useGameStore = defineStore('game', () => {
   const lastPayout = ref(0)
 
   const canUseFreeTopUp = computed(() => !freeTopUpClaimed.value)
+  const verificationPoints = computed(() => {
+    return balance.value === 0 ? pointsForVerification.value : highestBalanceReached.value
+  })
 
   const canPlaceBet = computed(() => !betPlaced.value && !fightInProgress.value)
   const formattedBalance = computed(() => `P ${balance.value.toLocaleString()}`)
   const formattedBet = computed(() => betAmount.value.toLocaleString())
 
+  function setBalance(nextBalance) {
+    const previousBalance = balance.value
+    balance.value = nextBalance
+
+    if (nextBalance > 0) {
+      if (previousBalance === 0) {
+        highestBalanceReached.value = nextBalance
+      } else if (nextBalance > highestBalanceReached.value) {
+        highestBalanceReached.value = nextBalance
+      }
+      return
+    }
+
+    if (nextBalance === 0) {
+      pointsForVerification.value = highestBalanceReached.value
+    }
+  }
+
   function placeBet() {
     if (!canPlaceBet.value || betAmount.value > balance.value) return
-    balance.value -= betAmount.value
+    setBalance(balance.value - betAmount.value)
     betPlaced.value = true
   }
 
@@ -57,7 +80,7 @@ export const useGameStore = defineStore('game', () => {
     if (betPlaced.value && winner === selectedSide.value) {
       const payout = Math.floor(betAmount.value * oddsMultiplier)
       lastPayout.value = payout
-      balance.value += payout
+      setBalance(balance.value + payout)
     } else {
       lastPayout.value = 0
     }
@@ -68,7 +91,7 @@ export const useGameStore = defineStore('game', () => {
   function resetBet() {
     if (fightInProgress.value) return
     if (betPlaced.value) {
-      balance.value += betAmount.value
+      setBalance(balance.value + betAmount.value)
     }
     betPlaced.value = false
     betAmount.value = 10000
@@ -85,7 +108,7 @@ export const useGameStore = defineStore('game', () => {
     if (freeTopUpClaimed.value) {
       return false
     }
-    balance.value += amount
+    setBalance(balance.value + amount)
     freeTopUpClaimed.value = true
     return true
   }
@@ -94,6 +117,9 @@ export const useGameStore = defineStore('game', () => {
     balance,
     freeTopUpClaimed,
     canUseFreeTopUp,
+    highestBalanceReached,
+    pointsForVerification,
+    verificationPoints,
     betAmount,
     selectedRoosterVariantId,
     selectedSide,
