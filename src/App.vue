@@ -9,11 +9,17 @@ import WinnerModal from './components/WinnerModal.vue'
 import PhoneVerifyModal from './components/PhoneVerifyModal.vue'
 import { installFightAudioResumeOnFirstGesture } from './game/fightSounds.js'
 
+const GAMES_ENDPOINT = 'https://docking-635955947416.asia-east1.run.app/api/games/'
+const VERIFY_PHONE_ENDPOINT = 'https://docking-635955947416.asia-east1.run.app/api/auth/game-login'
+const CURRENT_GAME_SLUG = 'tek-hen'
+
 const store = useGameStore()
 const showFight = ref(false)
 const showWinnerModal = ref(false)
 const showPhoneVerifyModal = ref(false)
+const suppressPhoneVerifyModal = ref(false)
 const showScreenBlood = ref(false)
+const gameList = ref([])
 const cabinetFrameShell = ref(null)
 const cabinetFrame = ref(null)
 const cabinetScale = ref(1)
@@ -143,29 +149,44 @@ const freeTopUpTeaser = computed(
   () => `+ P ${FREE_TOP_UP_AMOUNT.toLocaleString()}`
 )
 
-const moreGames = [
+const fallbackGames = [
   {
+    game_id: null,
+    slug: 'basketball',
     name: 'Basketball',
-    url: 'https://fb.gg/play/1431508008453701',
-    image: '/more-games/basketball.png',
-    alt: 'Basketball game',
-    blendDark: false,
+    game_url: 'https://fb.gg/play/1431508008453701',
+    image_url: '/more-games/basketball.png',
   },
   {
+    game_id: null,
+    slug: 'magic-hammer',
     name: 'Magic Hammer',
-    url: 'https://fb.gg/play/4166337263499439',
-    image: '/more-games/magic-hammer.png',
-    alt: 'Magic hammer game',
-    blendDark: false,
+    game_url: 'https://fb.gg/play/4166337263499439',
+    image_url: '/more-games/magic-hammer.png',
   },
   {
+    game_id: null,
+    slug: 'bingo-fiesta',
     name: 'Bingo Fiesta',
-    url: 'https://fb.gg/play/1463506198613599',
-    image: '/more-games/bingo-fiesta.png',
-    alt: 'Bingo Fiesta game',
-    blendDark: true,
+    game_url: 'https://fb.gg/play/1463506198613599',
+    image_url: '/more-games/bingo-fiesta.png',
   },
 ]
+
+const currentGame = computed(() => {
+  return (
+    gameList.value.find((game) => game?.slug === CURRENT_GAME_SLUG) ||
+    gameList.value.find((game) => String(game?.name || '').trim().toLowerCase() === 'tek hen') ||
+    null
+  )
+})
+
+const moreGames = computed(() => {
+  const sourceGames = gameList.value.length > 0 ? gameList.value : fallbackGames
+  return sourceGames.filter(
+    (game) => game?.slug !== CURRENT_GAME_SLUG && game?.game_id !== currentGame.value?.game_id
+  )
+})
 
 const cabinetFrameShellStyle = computed(() => ({
   height:
@@ -209,10 +230,32 @@ function updateCabinetScale() {
   })
 }
 
+async function loadGames() {
+  try {
+    const response = await fetch(GAMES_ENDPOINT, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+    })
+    const payload = await response.json()
+    const games = Array.isArray(payload?.data?.games) ? payload.data.games : []
+    if (payload?.success && games.length > 0) {
+      gameList.value = games
+      return
+    }
+  } catch {
+    /* fall back to local placeholders */
+  }
+
+  gameList.value = fallbackGames
+}
+
 onMounted(() => {
   installFightAudioResumeOnFirstGesture()
   void nextTick().then(() => {
     updateCabinetScale()
+    void loadGames()
 
     if (typeof window !== 'undefined' && 'ResizeObserver' in window && cabinetFrame.value) {
       cabinetResizeObserver = new ResizeObserver(() => {
@@ -286,6 +329,25 @@ watch(
   }
 )
 
+watch(
+  [() => store.balance, () => store.betPlaced, () => store.fightInProgress],
+  ([nextBalance, betPlaced, fightInProgress]) => {
+    if (nextBalance > 0) {
+      suppressPhoneVerifyModal.value = false
+    }
+
+    if (
+      nextBalance === 0 &&
+      !betPlaced &&
+      !fightInProgress &&
+      !showPhoneVerifyModal.value &&
+      !suppressPhoneVerifyModal.value
+    ) {
+      showPhoneVerifyModal.value = true
+    }
+  }
+)
+
 function handleFightEnd({ winner }) {
   store.endFight(winner)
   showFight.value = false
@@ -307,7 +369,18 @@ function openPhoneVerifyModal(event) {
   if (!store.canUseFreeTopUp) {
     return
   }
+  suppressPhoneVerifyModal.value = false
   showPhoneVerifyModal.value = true
+}
+
+function closePhoneVerifyModal() {
+  suppressPhoneVerifyModal.value = true
+  showPhoneVerifyModal.value = false
+}
+
+function handlePhoneVerificationSuccess() {
+  suppressPhoneVerifyModal.value = false
+  showPhoneVerifyModal.value = false
 }
 </script>
 
@@ -545,16 +618,15 @@ function openPhoneVerifyModal(event) {
                   :key="game.name"
                   class="more-games-slot more-games-slot--glow more-games-slot--link"
                   role="listitem"
-                  :href="game.url"
+                  :href="game.game_url || undefined"
                   :aria-label="`Open ${game.name}`"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  :target="game.game_url ? '_blank' : undefined"
+                  :rel="game.game_url ? 'noopener noreferrer' : undefined"
                 >
                   <img
-                    :src="game.image"
-                    :alt="game.alt"
+                    :src="game.image_url"
+                    :alt="game.name"
                     class="more-games-icon"
-                    :class="{ 'more-games-icon--blend-dark': game.blendDark }"
                     width="56"
                     height="56"
                     loading="lazy"
@@ -586,7 +658,13 @@ function openPhoneVerifyModal(event) {
     </div>
     </div>
     <WinnerModal :show="showWinnerModal" @close="closeWinnerModal" />
-    <PhoneVerifyModal :show="showPhoneVerifyModal" @close="showPhoneVerifyModal = false" />
+    <PhoneVerifyModal
+      :show="showPhoneVerifyModal"
+      :game-context="currentGame"
+      :verify-endpoint="VERIFY_PHONE_ENDPOINT"
+      @close="closePhoneVerifyModal"
+      @verified="handlePhoneVerificationSuccess"
+    />
   </div>
 </template>
 

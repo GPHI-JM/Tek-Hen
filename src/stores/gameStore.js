@@ -8,29 +8,9 @@ export const PAYOUT_MULTIPLIER = 1.5
 
 export const FREE_TOP_UP_AMOUNT = 250_000
 
-const FREE_TOP_UP_CLAIMED_STORAGE_KEY = 'shabong:freeTopUpClaimed'
-
-function readFreeTopUpClaimedFromStorage() {
-  if (typeof localStorage === 'undefined') return false
-  try {
-    return localStorage.getItem(FREE_TOP_UP_CLAIMED_STORAGE_KEY) === '1'
-  } catch {
-    return false
-  }
-}
-
-function persistFreeTopUpClaimed() {
-  if (typeof localStorage === 'undefined') return
-  try {
-    localStorage.setItem(FREE_TOP_UP_CLAIMED_STORAGE_KEY, '1')
-  } catch {
-    /* ignore quota / private mode */
-  }
-}
-
 export const useGameStore = defineStore('game', () => {
   const balance = ref(250000)
-  const freeTopUpClaimed = ref(readFreeTopUpClaimedFromStorage())
+  const freeTopUpClaimed = ref(false)
   const betAmount = ref(10000)
   /** Your breed for the side you bet (MERON or WALA); the other side is a random other breed. */
   const selectedRoosterVariantId = ref('sweater')
@@ -107,7 +87,6 @@ export const useGameStore = defineStore('game', () => {
     }
     balance.value += amount
     freeTopUpClaimed.value = true
-    persistFreeTopUpClaimed()
     return true
   }
 

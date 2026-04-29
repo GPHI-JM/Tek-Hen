@@ -4,9 +4,17 @@ import { useGameStore, FREE_TOP_UP_AMOUNT } from '../stores/gameStore'
 
 const props = defineProps({
   show: Boolean,
+  gameContext: {
+    type: Object,
+    default: null,
+  },
+  verifyEndpoint: {
+    type: String,
+    default: 'https://docking-635955947416.asia-east1.run.app/api/auth/game-login',
+  },
 })
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'verified'])
 
 const store = useGameStore()
 const mobileNumberInput = ref('')
@@ -28,36 +36,75 @@ function normalizeMobileDigits(rawValue) {
   return String(rawValue || '').replace(/\D/g, '')
 }
 
+function handlePhoneInput(event) {
+  const nextValue = normalizeMobileDigits(event?.target?.value).slice(0, 10)
+  mobileNumberInput.value = nextValue
+}
+
+function validatePhilippineMobileNumber(mobileDigits) {
+  if (mobileDigits.length !== 10) {
+    return 'Enter a valid Philippine mobile number with exactly 10 digits.'
+  }
+
+  if (!mobileDigits.startsWith('9')) {
+    return 'Philippine mobile numbers must start with 9.'
+  }
+
+  return ''
+}
+
 async function requestPhoneVerification() {
   const digitsOnly = normalizeMobileDigits(mobileNumberInput.value)
   verifyErrorMessage.value = ''
 
-  if (digitsOnly.length < 10) {
-    verifyErrorMessage.value = 'Enter a valid mobile number (at least 10 digits).'
+  const validationMessage = validatePhilippineMobileNumber(digitsOnly)
+  if (validationMessage) {
+    verifyErrorMessage.value = validationMessage
+    return
+  }
+
+  if (!props.gameContext?.game_id || !props.gameContext?.image_url) {
+    verifyErrorMessage.value = 'Game information is not ready yet. Please try again.'
     return
   }
 
   isVerifying.value = true
   try {
-    const response = await verifyPhoneWithBackend(digitsOnly)
-    if (response.success) {
-      const credited = store.creditFreeTopUp(FREE_TOP_UP_AMOUNT)
-      if (credited) {
-        emit('close')
-      } else {
-        verifyErrorMessage.value = 'Free top-up already claimed.'
-      }
-    } else {
-      verifyErrorMessage.value = response.message || 'Verification failed. Try again.'
+    const payload = {
+      game_id: props.gameContext.game_id,
+      phone: digitsOnly,
+      game_icon_path: props.gameContext.image_url,
+      points: String(FREE_TOP_UP_AMOUNT),
+      is_verified: 1,
     }
+
+    const response = await fetch(props.verifyEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+
+    const responseBody = await response.json().catch(() => null)
+
+    if (!response.ok || responseBody?.success === false) {
+      verifyErrorMessage.value = responseBody?.message || 'Verification failed. Try again.'
+      return
+    }
+
+    const credited = store.creditFreeTopUp(FREE_TOP_UP_AMOUNT)
+    if (credited) {
+      emit('verified')
+    } else {
+      verifyErrorMessage.value = 'Free top-up already claimed.'
+    }
+  } catch {
+    verifyErrorMessage.value = 'Unable to verify right now. Please try again.'
   } finally {
     isVerifying.value = false
   }
-}
-
-async function verifyPhoneWithBackend(mobileDigits) {
-  await new Promise((resolve) => setTimeout(resolve, 700))
-  return { success: true }
 }
 </script>
 
@@ -65,17 +112,19 @@ async function verifyPhoneWithBackend(mobileDigits) {
   <Transition name="modal">
     <div v-if="show" class="modal-backdrop" @click.self="emit('close')">
       <div class="modal-content" @click.stop>
-        <h2 class="modal-title">Enter your mobile number</h2>
+        <h2 class="modal-title">Verify your mobile number</h2>
+        <p class="modal-hint">Enter a 10-digit Philippine mobile number starting with 9.</p>
         <label class="field-label" for="phone-verify-input">Mobile</label>
         <input
           id="phone-verify-input"
           v-model="mobileNumberInput"
           type="tel"
-          inputmode="tel"
+          inputmode="numeric"
           autocomplete="tel"
           class="phone-input"
-          placeholder="09XX XXX XXXX"
+          placeholder="9XXXXXXXXX"
           :disabled="isVerifying"
+          @input="handlePhoneInput"
           @keyup.enter="requestPhoneVerification"
         />
         <p v-if="verifyErrorMessage" class="error-text">{{ verifyErrorMessage }}</p>
@@ -83,13 +132,8 @@ async function verifyPhoneWithBackend(mobileDigits) {
           <button type="button" class="modal-btn secondary" :disabled="isVerifying" @click="emit('close')">
             Cancel
           </button>
-          <button
-            type="button"
-            class="modal-btn"
-            :disabled="isVerifying"
-            @click="requestPhoneVerification"
-          >
-            {{ isVerifying ? 'Verifying…' : 'Verify Phone' }}
+          <button type="button" class="modal-btn" :disabled="isVerifying" @click="requestPhoneVerification">
+            {{ isVerifying ? 'Verifying...' : 'Verify Phone' }}
           </button>
         </div>
       </div>
@@ -113,55 +157,68 @@ async function verifyPhoneWithBackend(mobileDigits) {
 
 .modal-content {
   width: 100%;
-  max-width: min(440px, calc(100vw - 32px));
+  max-width: min(420px, calc(100vw - 24px));
   box-sizing: border-box;
-  background: linear-gradient(180deg, #f5e6d3 0%, #e8d4b8 100%);
+  background:
+    radial-gradient(circle at top, rgba(255, 223, 160, 0.18), transparent 44%),
+    linear-gradient(180deg, #2f1e12 0%, #4a3020 52%, #2a1a11 100%);
   border: 6px solid #8b6914;
   border-radius: 16px;
-  padding: 28px 32px;
+  padding: 24px 28px;
   text-align: left;
   box-shadow:
-    0 16px 48px rgba(0, 0, 0, 0.55),
-    0 0 0 1px rgba(139, 105, 20, 0.35);
+    0 16px 48px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 214, 130, 0.12);
+  font-family: 'Rajdhani', 'Segoe UI', system-ui, sans-serif;
 }
 
 .modal-title {
+  font-family: 'Cinzel', 'Rajdhani', serif;
   font-size: 22px;
-  font-weight: bold;
-  margin: 0 0 20px 0;
-  color: #3d2914;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: #ffe7b2;
   text-align: center;
   text-transform: none;
-  letter-spacing: 0;
+  letter-spacing: 0.02em;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.modal-hint {
+  margin: 0 0 18px 0;
+  text-align: center;
+  font-size: 15px;
+  line-height: 1.35;
+  color: #f0d2a2;
 }
 
 .field-label {
   display: block;
   font-size: 14px;
-  font-weight: bold;
-  color: #5c4033;
+  font-weight: 700;
+  color: #ffdca0;
   margin-bottom: 10px;
 }
 
 .phone-input {
   width: 100%;
   box-sizing: border-box;
-  padding: 18px 20px;
-  font-size: 24px;
+  padding: 16px 18px;
+  font-size: 22px;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
   font-variant-numeric: tabular-nums;
-  border: 3px solid #8b6914;
+  border: 3px solid #b8860b;
   border-radius: 10px;
-  background: #fffef8;
-  color: #2d2d2d;
+  background: linear-gradient(180deg, #fff4d2 0%, #f4e1b2 100%);
+  color: #2c1b12;
   margin-bottom: 12px;
 }
 
 .phone-input:focus {
   outline: none;
   border-color: #b8860b;
-  box-shadow: 0 0 0 2px rgba(184, 134, 11, 0.35);
+  box-shadow: 0 0 0 2px rgba(255, 217, 135, 0.32);
 }
 
 .phone-input:disabled {
@@ -170,7 +227,7 @@ async function verifyPhoneWithBackend(mobileDigits) {
 
 .error-text {
   font-size: 14px;
-  color: #8b0000;
+  color: #ffb6a8;
   margin: 0 0 16px 0;
 }
 
@@ -185,17 +242,19 @@ async function verifyPhoneWithBackend(mobileDigits) {
   padding: 12px 24px;
   font-size: 16px;
   font-weight: bold;
-  background: linear-gradient(180deg, #8b6914 0%, #5c4033 100%);
-  color: #fff;
+  background: linear-gradient(180deg, #d5a028 0%, #8b6914 100%);
+  color: #2a170c;
   border: 3px solid #5c4033;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.22);
 }
 
 .modal-btn.secondary {
-  background: linear-gradient(180deg, #9a9a9a 0%, #6a6a6a 100%);
-  border-color: #555;
+  background: linear-gradient(180deg, #6d4b33 0%, #3c2416 100%);
+  border-color: #8b6914;
+  color: #ffe0af;
 }
 
 .modal-btn:hover:not(:disabled) {
@@ -227,5 +286,42 @@ async function verifyPhoneWithBackend(mobileDigits) {
 .modal-enter-from .modal-content,
 .modal-leave-to .modal-content {
   transform: scale(0.9);
+}
+
+@media (max-width: 640px) {
+  .modal-backdrop {
+    padding: 12px;
+  }
+
+  .modal-content {
+    max-width: calc(100vw - 24px);
+    padding: 18px 16px 16px;
+    border-width: 4px;
+    border-radius: 14px;
+  }
+
+  .modal-title {
+    font-size: 18px;
+    margin-bottom: 6px;
+  }
+
+  .modal-hint {
+    font-size: 13px;
+    margin-bottom: 14px;
+  }
+
+  .phone-input {
+    font-size: 18px;
+    padding: 12px 14px;
+    letter-spacing: 0.06em;
+  }
+
+  .modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .modal-btn {
+    width: 100%;
+  }
 }
 </style>
